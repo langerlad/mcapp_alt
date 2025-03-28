@@ -1,0 +1,32 @@
+components:
+- event_bindings: {click: link_zoom_click}
+  layout_properties: {column: JKSDUP}
+  name: link_zoom
+  properties: {icon: 'fa:search', text: Detail}
+  type: Link
+- data_bindings:
+  - {code: 'self.item[''nazev'']', property: text, writeback: false}
+  layout_properties: {column: VJQQOR}
+  name: label_nazev_analyzy
+  properties: {}
+  type: Label
+- data_bindings:
+  - {code: 'self.item[''popis'']', property: text, writeback: false}
+  layout_properties: {column: OJLQEN}
+  name: label_popis
+  properties: {}
+  type: Label
+- data_bindings:
+  - {code: 'self.item[''datum_vytvoreni'']', property: text, writeback: false}
+  layout_properties: {column: QMVGNK}
+  name: label_vytvoreno
+  properties: {}
+  type: Label
+- data_bindings:
+  - {code: 'self.item[''datum_upravy'']', property: text, writeback: false}
+  layout_properties: {column: UKZPVR}
+  name: label_upraveno
+  properties: {}
+  type: Label
+container: {type: DataRowPanel}
+is_package: true

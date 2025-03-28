@@ -1,0 +1,69 @@
+components:
+- layout_properties: {grid_position: 'TEGDIC,VLLRUN'}
+  name: headline_1
+  properties: {bold: true, role: headline, text: Administrace aplikace}
+  type: Label
+- layout_properties: {grid_position: 'VXCYJY,QRNPSG'}
+  name: label_1
+  properties: {bold: true, icon: '', text: 'Přehled účtů:'}
+  type: Label
+- event_bindings: {click: button_pridat_uzivatele_click}
+  layout_properties: {grid_position: 'VXCYJY,WAAIPZ'}
+  name: button_pridat_uzivatele
+  properties: {align: right, icon: 'fa:user-plus', role: primary-color, text: Přidat účet}
+  type: Button
+- components:
+  - layout_properties: {}
+    name: repeating_panel_uzvatele
+    properties: {item_template: Administrace_komp.Uzivatele_Row, tooltip: ''}
+    type: RepeatingPanel
+  layout_properties: {grid_position: 'SJWFLA,SRYALJ'}
+  name: data_grid_uzivatele
+  properties:
+    columns:
+    - {data_key: column_email, expand: false, id: KKPUXW, title: Účet, width: 273}
+    - {data_key: column_pocet_analyz, expand: false, id: GWNUBU, title: Počet analýz, width: 107}
+    - {data_key: column_vytvoreni_uctu, expand: false, id: IBHVET, title: Datum vytvoření účtu, width: 162}
+    - {data_key: column_prihlaseni, expand: false, id: DTZEJU, title: Poslední přihlášení, width: 159}
+    - {data_key: column_1, expand: false, id: IODTUM, title: Administrátorská práva}
+    - {data_key: column_detail, expand: false, id: JKSDUP, title: '', width: 42}
+  type: DataGrid
+- layout_properties: {grid_position: 'AUAMEM,PRRNLT'}
+  name: label_zadni_uzivatele
+  properties: {align: center, foreground: 'theme:Secondary 700', icon: 'fa:exclamation-circle', text: Uživatelé nebyli nalezeni, visible: false}
+  type: Label
+- layout_properties: {grid_position: 'VDJMJR,NIGSRB'}
+  name: spacer_1
+  properties: {height: 32}
+  type: Spacer
+- layout_properties: {grid_position: 'PTJIMB,WJZFBS'}
+  name: label_2
+  properties: {bold: true, icon: '', text: 'Přehled analýz:'}
+  type: Label
+- layout_properties: {grid_position: 'PTJIMB,LTJNPF'}
+  name: label_uzivatel
+  properties: {bold: true}
+  type: Label
+- components:
+  - name: repeating_panel_analyzy
+    properties: {item_template: Administrace_komp.Analyzy_Row}
+    type: RepeatingPanel
+  layout_properties: {grid_position: 'UMFMFC,UKONFT'}
+  name: data_grid_analyzy
+  properties:
+    columns:
+    - {data_key: column_1, expand: false, id: JKSDUP, title: Akce, width: 107}
+    - {data_key: column_2, id: VJQQOR, title: Název analýzy}
+    - {data_key: column_3, id: OJLQEN, title: Popis}
+    - {data_key: column_1, id: QMVGNK, title: Vytvořeno}
+    - {data_key: column_2, id: UKZPVR, title: Naposledy upraveno}
+  type: DataGrid
+- layout_properties: {grid_position: 'RRANVU,CKWTES'}
+  name: label_vyberte_ucet
+  properties: {align: center, background: '', bold: true, foreground: 'theme:Primary 500', icon: 'fa:exclamation-circle', text: Vyberte účet., visible: true}
+  type: Label
+container:
+  event_bindings: {}
+  properties: {col_widths: '{"WJZFBS":10,"LTJNPF":50}'}
+  type: ColumnPanel
+is_package: true

@@ -1,0 +1,76 @@
+components:
+- components:
+  - data_bindings:
+    - {code: 'self.item[''nazev'']', property: text, writeback: false}
+    layout_properties: {grid_position: 'WUIAWA,JMYEDJ'}
+    name: label_nazev
+    properties: {bold: true, role: null}
+    type: Label
+  - data_bindings: []
+    event_bindings: {click: button_vypocet_click}
+    layout_properties: {grid_position: 'WUIAWA,CUIMWE'}
+    name: button_vypocet
+    properties: {align: center, icon: 'fa:bar-chart', role: secondary-color, text: Analyzovat, tooltip: Analyzovat data}
+    type: Button
+  - event_bindings: {click: button_upravit_click}
+    layout_properties: {grid_position: 'WUIAWA,QJGUTW'}
+    name: button_upravit
+    properties: {align: right, icon: 'fa:edit', role: primary-color, text: '', tooltip: Editovat analýzu}
+    type: Button
+  - layout_properties: {grid_position: 'WUIAWA,HLTDBX'}
+    name: button_klonovat
+    properties: {icon: 'fa:clone', role: primary-color, text: '', tooltip: Vytvořit kopii}
+    type: Button
+  - event_bindings: {click: button_smazat_click}
+    layout_properties: {grid_position: 'WUIAWA,HJZWGM'}
+    name: button_smazat
+    properties: {align: left, icon: 'fa:trash-o', role: primary-color, text: ''}
+    type: Button
+  - layout_properties: {grid_position: 'KONRHK,ZPLMIT'}
+    name: label_2
+    properties: {text: 'Metoda:'}
+    type: Label
+  - data_bindings:
+    - {code: 'self.item[''zvolena_metoda'']', property: text, writeback: false}
+    layout_properties: {grid_position: 'KONRHK,ISPXCO'}
+    name: label_zvolena_metoda
+    properties: {}
+    type: Label
+  - layout_properties: {grid_position: 'KONRHK,EEHTOB'}
+    name: label_1
+    properties: {text: 'Vytvořeno:'}
+    type: Label
+  - data_bindings:
+    - {code: 'self.item[''datum_vytvoreni'']', property: text, writeback: false}
+    layout_properties: {grid_position: 'KONRHK,BBHAXF'}
+    name: label_datum_vytvoreni
+    properties: {}
+    type: Label
+  - layout_properties: {grid_position: 'KONRHK,YIRKAY'}
+    name: label_5
+    properties: {text: 'Naposledy upraveno:'}
+    type: Label
+  - data_bindings:
+    - {code: 'self.item[''datum_upravy'']', property: text, writeback: false}
+    layout_properties: {grid_position: 'KONRHK,TAWGSN'}
+    name: label_upraveno
+    properties: {}
+    type: Label
+  - layout_properties: {grid_position: 'XVNFXK,IVYVCC'}
+    name: label_3
+    properties: {text: 'Popis analýzy:'}
+    type: Label
+  - data_bindings:
+    - {code: 'self.item[''popis'']', property: text, writeback: false}
+    layout_properties: {grid_position: 'XVNFXK,ZXFZZG'}
+    name: label_popis
+    properties: {}
+    type: Label
+  layout_properties: {grid_position: 'XBCGQH,EGBQBF'}
+  name: card_1
+  properties: {col_widths: '{"EEHTOB":10,"BBHAXF":15,"JMYEDJ":60,"ZPLMIT":10,"ISPXCO":20,"YIRKAY":15,"TAWGSN":12,"HJZWGM":9,"QJGUTW":7,"HLTDBX":10,"CUIMWE":20,"IVYVCC":10,"ZXFZZG":50}', role: card}
+  type: ColumnPanel
+container:
+  properties: {tooltip: Odstranit analýzu}
+  type: ColumnPanel
+is_package: true

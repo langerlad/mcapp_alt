@@ -1,0 +1,41 @@
+components:
+- data_bindings:
+  - {code: 'self.item[''vytvoreni'']', property: text, writeback: false}
+  layout_properties: {column: IBHVET}
+  name: label_vytvoreni
+  properties: {}
+  type: Label
+- data_bindings:
+  - {code: 'self.item[''prihlaseni'']', property: text, writeback: false}
+  layout_properties: {column: DTZEJU}
+  name: label_prihlaseni
+  properties: {}
+  type: Label
+- data_bindings:
+  - {code: 'self.item[''pocet_analyz'']', property: text, writeback: false}
+  layout_properties: {column: GWNUBU}
+  name: label_pocet_analyz
+  properties: {align: center}
+  type: Label
+- data_bindings:
+  - {code: 'self.item[''email'']', property: text, writeback: false}
+  event_bindings: {click: link_email_click}
+  layout_properties: {column: KKPUXW}
+  name: link_email
+  properties: {icon: 'fa:folder-open'}
+  type: Link
+- components: []
+  event_bindings: {click: link_odstranit_click}
+  layout_properties: {column: JKSDUP}
+  name: link_odstranit
+  properties: {icon: 'fa:user-times', role: null, text: '', tooltip: Smazat uživatele}
+  type: Link
+- data_bindings:
+  - {code: 'self.item[''role'']', property: text, writeback: false}
+  event_bindings: {change: check_box_admin_change}
+  layout_properties: {column: IODTUM}
+  name: check_box_admin
+  properties: {align: center, text: ''}
+  type: CheckBox
+container: {type: DataRowPanel}
+is_package: true

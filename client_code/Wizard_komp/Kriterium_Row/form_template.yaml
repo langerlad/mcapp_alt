@@ -1,0 +1,44 @@
+components:
+- components: []
+  event_bindings: {click: link_smazat_kriterium_click}
+  layout_properties: {column: ZSZCEK}
+  name: link_smazat_kriterium
+  properties:
+    align: right
+    icon: fa:trash
+    icon_align: right_edge
+    role: null
+    spacing:
+      margin: [null, null, null, null]
+      padding: [null, null, null, '0']
+    text: Odstranit
+    tooltip: Smazat kritérium
+  type: Link
+- data_bindings:
+  - {code: 'self.item[''nazev_kriteria'']', property: text, writeback: false}
+  layout_properties: {column: JKSDUP}
+  name: label_nazev_kriteria
+  properties: {}
+  type: Label
+- data_bindings:
+  - {code: 'self.item[''typ'']', property: text, writeback: false}
+  layout_properties: {column: VJQQOR}
+  name: label_typ
+  properties: {}
+  type: Label
+- data_bindings:
+  - {code: 'self.item[''vaha'']', property: text, writeback: false}
+  layout_properties: {column: OJLQEN}
+  name: label_vaha
+  properties: {}
+  type: Label
+- event_bindings: {click: link_upravit_kriterium_click}
+  layout_properties: {column: VSBMVR}
+  name: link_upravit_kriterium
+  properties: {align: right, icon: 'fa:pencil-square', icon_align: right_edge, text: Upravit, tooltip: Upravit hodnoty}
+  type: Link
+container:
+  properties:
+    margin: [null, '4', null, '4']
+  type: DataRowPanel
+is_package: true

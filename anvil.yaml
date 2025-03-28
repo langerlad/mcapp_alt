@@ -1,0 +1,159 @@
+allow_embedding: false
+correct_dependency_ids: {}
+db_schema:
+  analyza:
+    client: none
+    columns:
+    - admin_ui: {order: 0, width: 200}
+      name: nazev
+      type: string
+    - admin_ui: {order: 1, width: 200}
+      name: popis
+      type: string
+    - admin_ui: {order: 2, width: 200}
+      name: uzivatel
+      target: users
+      type: link_single
+    - admin_ui: {order: 3, width: 200}
+      name: datum_vytvoreni
+      type: datetime
+    - admin_ui: {order: 4, width: 200}
+      name: datum_upravy
+      type: datetime
+    - admin_ui: {order: 5, width: 200}
+      name: stav
+      type: string
+    server: full
+    title: Analyza
+  hodnota:
+    client: none
+    columns:
+    - admin_ui: {order: 0, width: 200}
+      name: varianta
+      target: varianta
+      type: link_single
+    - admin_ui: {order: 1, width: 200}
+      name: kriterium
+      target: kriterium
+      type: link_single
+    - admin_ui: {order: 2, width: 200}
+      name: hodnota
+      type: number
+    - admin_ui: {order: -1, width: 200}
+      name: analyza
+      target: analyza
+      type: link_single
+    server: full
+    title: Hodnota
+  kriterium:
+    client: none
+    columns:
+    - admin_ui: {order: 0, width: 200}
+      name: analyza
+      target: analyza
+      type: link_single
+    - admin_ui: {order: 1, width: 200}
+      name: nazev_kriteria
+      type: string
+    - admin_ui: {order: 2, width: 200}
+      name: typ
+      type: string
+    - admin_ui: {order: 3, width: 200}
+      name: vaha
+      type: number
+    server: full
+    title: Kriterium
+  users:
+    client: none
+    columns:
+    - admin_ui: {order: 0, width: 200}
+      name: email
+      type: string
+    - admin_ui: {order: 1, width: 200}
+      name: enabled
+      type: bool
+    - admin_ui: {order: 2, width: 200}
+      name: last_login
+      type: datetime
+    - admin_ui: {order: 3, width: 200}
+      name: password_hash
+      type: string
+    - admin_ui: {order: 4, width: 200}
+      name: n_password_failures
+      type: number
+    - admin_ui: {order: 5, width: 200}
+      name: confirmed_email
+      type: bool
+    - admin_ui: {order: 6, width: 200}
+      name: signed_up
+      type: datetime
+    - admin_ui: {order: 7, width: 200}
+      name: remembered_logins
+      type: simpleObject
+    - admin_ui: {order: 8, width: 200}
+      name: role
+      type: string
+    server: full
+    title: Users
+  varianta:
+    client: none
+    columns:
+    - admin_ui: {order: 0, width: 200}
+      name: analyza
+      target: analyza
+      type: link_single
+    - admin_ui: {order: 1, width: 200}
+      name: nazev_varianty
+      type: string
+    - admin_ui: {order: 2, width: 200}
+      name: popis_varianty
+      type: string
+    server: full
+    title: Varianta
+  vysledekanalyzy:
+    client: none
+    columns:
+    - admin_ui: {order: 0, width: 200}
+      name: analyza
+      target: analyza
+      type: link_single
+    - admin_ui: {order: 1, width: 200}
+      name: varianta
+      target: varianta
+      type: link_single
+    - admin_ui: {order: 2, width: 200}
+      name: metoda
+      type: string
+    - admin_ui: {order: 3, width: 200}
+      name: skore
+      type: number
+    - admin_ui: {order: 4, width: 200}
+      name: poradi
+      type: number
+    - admin_ui: {order: 5, width: 200}
+      name: datum_vypoctu
+      type: datetime
+    - admin_ui: {order: 6, width: 200}
+      name: detailni_vystup
+      type: string
+    server: full
+    title: VysledekAnalyzy
+dependencies: []
+metadata: {description: Vícekriteriální analýza variant., logo_img: 'asset:Bez názvu.png', title: MCApp}
+name: Clone of MCApp
+package_name: MCApp
+runtime_options:
+  client_version: '3'
+  server_spec: {base: python310-standard}
+  server_version: python3-sandbox
+  version: 2
+secrets: null
+services:
+- client_config: {enable_v2: false}
+  server_config: {}
+  source: /runtime/services/tables.yml
+- client_config: {allow_remember_me: true, allow_signup: true, confirm_email: false, enable_automatically: true, remember_me_days: 365, use_email: true}
+  server_config: {user_table: users}
+  source: /runtime/services/anvil/users.yml
+startup: {module: Hlavni_okno, type: form}
+startup_form: null

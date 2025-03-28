@@ -1,0 +1,22 @@
+components:
+- layout_properties: {grid_position: 'RGDYSJ,ERROZQ'}
+  name: headline_1
+  properties: {bold: true, role: headline, text: Přehled analýz}
+  type: Label
+- layout_properties: {grid_position: 'AVWDOK,QWOBMY'}
+  name: label_no_analyzy
+  properties: {align: right, foreground: 'theme:Primary 700', icon: 'fa:info-circle', role: subheading, text: Zatím nemáte žádné analýzy., visible: false}
+  type: Label
+- event_bindings: {click: button_pridat_analyzu_click}
+  layout_properties: {grid_position: 'AVWDOK,VUFSKI'}
+  name: button_pridat_analyzu
+  properties: {align: right, icon: 'fa:plus-circle', role: primary-color, text: Přidat novou analýzu}
+  type: Button
+- layout_properties: {grid_position: 'WORKPI,DZCJLY'}
+  name: repeating_panel_dashboard
+  properties: {item_template: Dashboard_uziv_komp.Analyza_Row}
+  type: RepeatingPanel
+container:
+  properties: {col_widths: '{"QWOBMY":45,"VUFSKI":15}'}
+  type: ColumnPanel
+is_package: true

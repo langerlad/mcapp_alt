@@ -1,0 +1,224 @@
+components:
+- layout_properties: {grid_position: 'LIPYZJ,OBNJPH'}
+  name: headline_1
+  properties: {align: left, bold: true, role: headline, text: Zadání dat pro analýzu}
+  type: Label
+- components:
+  - layout_properties: {grid_position: 'YZOIBS,ZMDROM'}
+    name: label_1
+    properties: {bold: true, text: 'KROK 1: Zadejte základní údaje o analýze.'}
+    type: Label
+  - layout_properties: {grid_position: 'XOGYFM,TPULLN'}
+    name: spacer_1
+    properties: {height: 32}
+    type: Spacer
+  - layout_properties: {grid_position: 'NBYEAX,KHDNYW'}
+    name: label_1a
+    properties: {bold: true, text: 'Zadejte název analýzy:'}
+    type: Label
+  - layout_properties: {grid_position: 'NBYEAX,NJBMLW'}
+    name: text_box_nazev
+    properties: {align: left, placeholder: až 80 znaků, role: null, text: ''}
+    type: TextBox
+  - layout_properties: {grid_position: 'BEMJWT,RQJVWX'}
+    name: label_1b
+    properties: {bold: true, text: 'Můžete přidat popis analýzy:'}
+    type: Label
+  - layout_properties: {grid_position: 'ERDEUJ,ZHTQDN'}
+    name: text_area_popis
+    properties: {height: 139, placeholder: až 600 znaků (volitelné)}
+    type: TextArea
+  - event_bindings: {click: button_zrusit_click}
+    layout_properties: {grid_position: ',UVCAQV'}
+    name: button_zrusit
+    properties: {align: left, icon: 'fa:close', role: primary-color, text: Zrušit}
+    type: Button
+  - event_bindings: {click: button_dalsi_click}
+    layout_properties: {grid_position: ''}
+    name: button_dalsi
+    properties: {align: right, icon: 'fa:arrow-right', icon_align: right, role: primary-color, text: Další krok}
+    type: Button
+  - layout_properties: {grid_position: 'AGMPSX,QWXOJE'}
+    name: label_chyba
+    properties: {align: center, bold: true, foreground: 'theme:Secondary 700', icon: 'fa:exclamation-circle', text: CHYBOVÁ HLÁŠKA, visible: false}
+    type: Label
+  layout_properties: {grid_position: 'OBIREG,VODERK'}
+  name: card_krok_1
+  properties: {col_widths: '{"NJBMLW":35,"KHDNYW":35,"UVCAQV":30,"undefined":15}', role: card}
+  type: ColumnPanel
+- components:
+  - layout_properties: {grid_position: 'YLREWR,CWEFBM'}
+    name: label_2
+    properties: {bold: true, text: 'KROK 2: Definujte kritéria výběru.'}
+    type: Label
+  - layout_properties: {grid_position: 'ZODESI,JWIUSW'}
+    name: spacer_2
+    properties: {height: 32}
+    type: Spacer
+  - data_bindings: []
+    layout_properties: {grid_position: 'LHFDTW,OHODQT'}
+    name: text_box_nazev_kriteria
+    properties: {placeholder: Název kriteria}
+    type: TextBox
+  - data_bindings: []
+    layout_properties: {grid_position: 'LHFDTW,CXZENQ'}
+    name: drop_down_typ
+    properties:
+      include_placeholder: true
+      items: [max, min]
+      placeholder: Typ [max / min]
+    type: DropDown
+  - data_bindings: []
+    layout_properties: {grid_position: 'LHFDTW,RKVGDY'}
+    name: text_box_vaha
+    properties: {placeholder: váha, type: text}
+    type: TextBox
+  - event_bindings: {click: button_pridej_kriterium_click}
+    layout_properties: {grid_position: 'LHFDTW,YZYJRA'}
+    name: button_pridej_kriterium
+    properties: {align: right, icon: 'fa:plus-square', role: primary-color, text: Přidat kriterium}
+    type: Button
+  - layout_properties: {grid_position: 'GRLINV,YXKHIE'}
+    name: spacer_3
+    properties: {height: 32}
+    type: Spacer
+  - components:
+    - name: repeating_panel_kriteria
+      properties: {item_template: Wizard_komp.Kriterium_Row}
+      type: RepeatingPanel
+    layout_properties: {grid_position: 'UEEROT,ERJJNR'}
+    name: data_grid_kriteria
+    properties:
+      columns:
+      - {data_key: nazev_kriteria, expand: false, id: JKSDUP, title: Název kritéria, width: 399}
+      - {data_key: typ, expand: false, id: VJQQOR, title: 'Typ [min / max]', width: 235}
+      - {data_key: vaha, expand: false, id: OJLQEN, title: Váha, width: 84}
+      - {data_key: upravit_kriterium, expand: false, id: VSBMVR, title: '', width: 104}
+      - {data_key: smazat_kriterium, expand: false, id: ZSZCEK, title: '', width: 106}
+      rows_per_page: 60
+      show_page_controls: false
+    type: DataGrid
+  - event_bindings: {click: button_zrusit_click}
+    layout_properties: {grid_position: 'CTLUSJ,STPCFI'}
+    name: button_zrusit_2
+    properties: {align: left, icon: 'fa:close', role: primary-color, text: Zrušit}
+    type: Button
+  - event_bindings: {click: button_zpet_2_click}
+    layout_properties: {grid_position: 'CTLUSJ,ISELKU'}
+    name: button_zpet_2
+    properties: {align: right, icon: 'fa:arrow-left', role: primary-color, text: Zpět}
+    type: Button
+  - event_bindings: {click: button_dalsi_2_click}
+    layout_properties: {grid_position: 'CTLUSJ,HKOARL'}
+    name: button_dalsi_2
+    properties: {align: right, icon: 'fa:arrow-right', icon_align: right, role: primary-color, text: Další krok}
+    type: Button
+  - layout_properties: {grid_position: 'ERHLYH,CWFYGX'}
+    name: label_chyba_2
+    properties: {align: center, bold: true, foreground: 'theme:Secondary 700', icon: 'fa:exclamation-circle', text: CHYBOVÁ HLÁŠKA, visible: false}
+    type: Label
+  layout_properties: {grid_position: 'UOVTML,YGHHIB'}
+  name: card_krok_2
+  properties: {col_widths: '{"OHODQT":25,"CXZENQ":15,"RKVGDY":5,"YZYJRA":15,"STPCFI":30,"ISELKU":15,"HKOARL":15}', role: card, visible: true}
+  type: ColumnPanel
+- components:
+  - layout_properties: {grid_position: 'QWNITA,CFPCBX'}
+    name: label_3
+    properties: {bold: true, text: 'KROK 3: Přidejte jednotlivé varianty.'}
+    type: Label
+  - layout_properties: {grid_position: 'ECPDTB,SLKIOY'}
+    name: spacer_4
+    properties: {height: 32}
+    type: Spacer
+  - layout_properties: {grid_position: ',undefined'}
+    name: text_box_nazev_varianty
+    properties: {placeholder: Název varianty}
+    type: TextBox
+  - layout_properties: {grid_position: ',OLNVHG'}
+    name: text_box_popis_varianty
+    properties: {placeholder: Popis (volitelné)}
+    type: TextBox
+  - event_bindings: {click: button_pridej_variantu_click}
+    layout_properties: {grid_position: ',PZLXNU'}
+    name: button_pridej_variantu
+    properties: {align: right, icon: 'fa:plus-square', role: primary-color, text: Přidej variantu}
+    type: Button
+  - layout_properties: {grid_position: 'DHZSTO,QUTIHA'}
+    name: spacer_5
+    properties: {height: 32}
+    type: Spacer
+  - components:
+    - name: repeating_panel_varianty
+      properties: {item_template: Wizard_komp.Varianta_Row}
+      type: RepeatingPanel
+    layout_properties: {grid_position: 'XSWGMI,HDXQUX'}
+    name: data_grid_varianty
+    properties:
+      columns:
+      - {data_key: nazev_varianty, expand: false, id: JKSDUP, title: Název varianty, width: 232}
+      - {data_key: popis_varianty, expand: false, id: VJQQOR, title: Popis, width: 556}
+      - {data_key: smazat_variantu, expand: false, id: OJLQEN, title: '', width: 155}
+      rows_per_page: 60
+      show_page_controls: false
+    type: DataGrid
+  - event_bindings: {click: button_zrusit_click}
+    layout_properties: {grid_position: 'RJXKOH,CHZRAY'}
+    name: button_zrusit_3
+    properties: {align: left, icon: 'fa:close', role: primary-color, text: Zrušit}
+    type: Button
+  - event_bindings: {click: button_zpet_3_click}
+    layout_properties: {grid_position: 'RJXKOH,MXVRBZ'}
+    name: button_zpet_3
+    properties: {align: right, icon: 'fa:arrow-left', role: primary-color, text: Zpět}
+    type: Button
+  - event_bindings: {click: button_dalsi_3_click}
+    layout_properties: {grid_position: 'RJXKOH,MSAZOD'}
+    name: button_dalsi_3
+    properties: {align: right, icon: 'fa:arrow-right', icon_align: right, role: primary-color, text: Další krok}
+    type: Button
+  - layout_properties: {grid_position: 'LUCKUB,KGGNKJ'}
+    name: label_chyba_3
+    properties: {align: center, bold: true, foreground: 'theme:Secondary 700', icon: 'fa:exclamation-circle', text: CHYBOVÁ HLÁŠKA, visible: false}
+    type: Label
+  layout_properties: {grid_position: 'UCUWPS,RVBOFH'}
+  name: card_krok_3
+  properties: {col_widths: '{"undefined":15,"OLNVHG":30,"PZLXNU":15,"CHZRAY":30,"MXVRBZ":15,"MSAZOD":15}', role: card}
+  type: ColumnPanel
+- components:
+  - layout_properties: {grid_position: 'RVLVOC,PNRJOP'}
+    name: label_4
+    properties: {bold: true, text: 'KROK 4: Vyplňte hodnoty do matice varianty ✖ kritéria'}
+    type: Label
+  - layout_properties: {grid_position: 'IGXJGM,NSXNPN'}
+    name: spacer_6
+    properties: {height: 32}
+    type: Spacer
+  - layout_properties: {grid_position: 'RGVCDG,MTHNVB'}
+    name: Matice_var
+    properties: {item_template: Wizard_komp.Matice_var}
+    type: RepeatingPanel
+  - event_bindings: {click: button_zrusit_click}
+    layout_properties: {grid_position: 'FFXGJU,VYLTWK'}
+    name: button_zrusit_4
+    properties: {align: left, icon: 'fa:close', role: primary-color, text: Zrušit}
+    type: Button
+  - event_bindings: {click: button_zpet_4_click}
+    layout_properties: {grid_position: 'FFXGJU,BFUAPC'}
+    name: button_zpet_4
+    properties: {align: right, icon: 'fa:arrow-left', role: primary-color, text: Zpět}
+    type: Button
+  - event_bindings: {click: button_ulozit_4_click}
+    layout_properties: {grid_position: 'FFXGJU,SHYKQC'}
+    name: button_ulozit_4
+    properties: {align: right, icon: 'fa:save', role: primary-color, text: Dokončit}
+    type: Button
+  - layout_properties: {grid_position: 'OWYQOM,EJVRPW'}
+    name: label_chyba_4
+    properties: {align: center, bold: true, foreground: 'theme:Secondary 700', icon: 'fa:exclamation-circle', text: CHYBOVÁ HLÁŠKA, visible: false}
+    type: Label
+  layout_properties: {grid_position: 'WCHZGS,XMCCVU'}
+  name: card_krok_4
+  properties: {col_widths: '{"VYLTWK":25,"BFUAPC":20,"SHYKQC":15}', role: card}
+  type: ColumnPanel
+container: {type: ColumnPanel}
+is_package: true

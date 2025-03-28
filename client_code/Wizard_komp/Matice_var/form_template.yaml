@@ -1,0 +1,19 @@
+components:
+- data_bindings:
+  - {code: 'self.item[''název_varianty'']', property: text, writeback: false}
+  layout_properties: {grid_position: 'JHTXOF,KYVQFV'}
+  name: label_matice_nazev_varianty
+  properties: {}
+  type: Label
+- layout_properties: {grid_position: 'BLBQED,ABDBTD'}
+  name: spacer_1
+  properties: {height: 32}
+  type: Spacer
+- layout_properties: {grid_position: 'BLBQED,OQYDGT'}
+  name: Matice_krit
+  properties: {item_template: Wizard_komp.Matice_var.Matice_krit}
+  type: RepeatingPanel
+container:
+  properties: {col_widths: '{"ABDBTD":5,"OQYDGT":55}'}
+  type: ColumnPanel
+is_package: true

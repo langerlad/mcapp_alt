@@ -1,0 +1,20 @@
+components:
+- data_bindings:
+  - {code: 'self.item[''nazev_varianty'']', property: text, writeback: false}
+  layout_properties: {column: JKSDUP}
+  name: label_nazev_varianty
+  properties: {}
+  type: Label
+- data_bindings:
+  - {code: 'self.item[''popis_varianty'']', property: text, writeback: false}
+  layout_properties: {column: VJQQOR}
+  name: label_popis_varianty
+  properties: {}
+  type: Label
+- event_bindings: {click: link_smazat_variantu_click}
+  layout_properties: {column: OJLQEN}
+  name: link_smazat_variantu
+  properties: {align: left, icon: 'fa:trash', icon_align: right, text: Odstranit, tooltip: Smazat variantu}
+  type: Link
+container: {type: DataRowPanel}
+is_package: true

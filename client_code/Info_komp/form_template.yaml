@@ -1,0 +1,15 @@
+components:
+- layout_properties: {grid_position: ''}
+  name: spacer_1
+  properties: {height: 175}
+  type: Spacer
+- layout_properties: {grid_position: 'IMXCOM,ASUQEE'}
+  name: image_1
+  properties: {source: _/theme/gears_7187216.png}
+  type: Image
+- layout_properties: {grid_position: 'TVPOZZ,OFAHTV'}
+  name: label_1
+  properties: {align: center, bold: true, text: TADY SE JEŠTĚ PRACUJE!}
+  type: Label
+container: {type: ColumnPanel}
+is_package: true

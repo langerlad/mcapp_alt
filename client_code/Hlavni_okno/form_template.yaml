@@ -1,0 +1,74 @@
+components:
+- components: []
+  layout_properties: {slot: default}
+  name: pravy_panel
+  properties: {}
+  type: ColumnPanel
+- components:
+  - data_bindings:
+    - {code: 'self.item[''jmeno'']', property: text, writeback: false}
+    event_bindings: {click: link_ucet_click}
+    layout_properties: {}
+    name: link_ucet
+    properties: {text: uživatel}
+    type: Link
+  - event_bindings: {click: link_odhlasit_click}
+    layout_properties: {}
+    name: link_odhlasit
+    properties: {text: Odhlásit se}
+    type: Link
+  - event_bindings: {click: link_registrace_click}
+    layout_properties: {}
+    name: link_registrace
+    properties: {text: Registrace}
+    type: Link
+  - event_bindings: {click: link_prihlasit_click}
+    layout_properties: {}
+    name: link_prihlasit
+    properties: {text: Přihlásit se}
+    type: Link
+  layout_properties: {slot: nav-right}
+  name: navbar
+  properties: {}
+  type: FlowPanel
+- layout_properties: {slot: title}
+  name: label_titul
+  properties: {text: MCApp}
+  type: Label
+- components:
+  - data_bindings: []
+    event_bindings: {click: link_domu_click}
+    layout_properties: {grid_position: 'IAIPHX,BULZOM'}
+    name: link_domu
+    properties: {icon: 'fa:home', text: Domů}
+    type: Link
+  - components: []
+    event_bindings: {click: link_pridat_analyzu_click}
+    layout_properties: {grid_position: 'TFLGZM,PGMYCF'}
+    name: link_pridat_analyzu
+    properties: {icon: 'fa:plus-square', text: Přidat novou analýzu}
+    type: Link
+  - components: []
+    event_bindings: {click: link_nastaveni_click}
+    layout_properties: {grid_position: 'MHRRVW,SVWVAV'}
+    name: link_nastaveni
+    properties: {icon: 'fa:gears', text: Nastavení}
+    type: Link
+  - event_bindings: {click: link_info_click}
+    layout_properties: {grid_position: 'HOMGWT,JYZQED'}
+    name: link_info
+    properties: {icon: 'fa:info-circle', text: O Aplikaci}
+    type: Link
+  - event_bindings: {click: link_administrace_click}
+    layout_properties: {grid_position: 'TVRFCW,VPIVOW'}
+    name: link_administrace
+    properties: {icon: 'fa:group', text: Administrace}
+    type: Link
+  layout_properties: {slot: left-nav}
+  name: levy_panel
+  properties: {}
+  type: ColumnPanel
+container:
+  properties: {html: '@theme:standard-page.html'}
+  type: HtmlTemplate
+is_package: true

@@ -1,0 +1,83 @@
+components:
+- layout_properties: {grid_position: 'BSDKUL,VNOMTB'}
+  name: headline_1
+  properties: {bold: true, role: headline, text: 'Výběr metody multikriteriální analýzy:'}
+  type: Label
+- components:
+  - event_bindings: {click: link_SAW_click}
+    layout_properties: {grid_position: 'QVMNOW,UYFUFF'}
+    name: link_SAW
+    properties: {align: left, bold: true, font_size: 18, role: null, text: Simple additive weighting (SAW)}
+    type: Link
+  - layout_properties: {grid_position: 'XOWXZP,RPSZXA'}
+    name: label_3
+    properties:
+      align: left
+      text: |-
+        Princip: Jedna z nejjednodušších metod; každé kritérium má určitou váhu a hodnocení se provádí formou normalizovaného součtu těchto vah.
+
+        Využití: Rychlé, přehledné řešení pro méně složité úlohy, vyžaduje ale, aby kritéria byla vzájemně nezávislá.
+    type: Label
+  layout_properties: {grid_position: 'XMPJUQ,TNMMPE'}
+  name: card_3
+  properties: {role: card}
+  type: ColumnPanel
+- components:
+  - event_bindings: {click: link_wpm_click}
+    layout_properties: {grid_position: 'KDFYSQ,VLSJSL'}
+    name: link_wpm
+    properties: {align: left, bold: true, font_size: 18, icon: '', role: null, text: Weighted Product Model (WPM), visible: true}
+    type: Link
+  - layout_properties: {grid_position: 'LFDSGU,ICAPWR'}
+    name: label_1
+    properties:
+      align: left
+      text: |-
+        Princip: Podobný SAW, ale místo sčítání se používá součin normalizovaných hodnot.
+
+        Využití: Zdůrazňuje multiplikativní efekt – pokud je jedna hodnota výrazně nízká, celkové skóre klesá víc než u prostého sčítání.
+    type: Label
+  layout_properties: {grid_position: 'FTWRWG,YOIAGD'}
+  name: card_1
+  properties: {role: card, visible: true}
+  type: ColumnPanel
+- components:
+  - event_bindings: {click: link_topsis_click}
+    layout_properties: {grid_position: 'TUPIKY,BQLZRR'}
+    name: link_topsis
+    properties: {align: left, bold: true, font_size: 18, text: Technique for Order of Preference by Similarity to Ideal Solution (TOPSIS)}
+    type: Link
+  - layout_properties: {grid_position: 'IDPQWF,QHYNWK'}
+    name: label_2
+    properties:
+      align: left
+      text: |-
+        Princip: Porovnává alternativy vůči ideálnímu (nejlepší možná hodnota kritérií) a proti tzv. negativnímu ideálu (nejhorší možná hodnota).
+
+        Využití: Vhodná pro případy, kdy jsou jasně definované ideální a nejhorší hodnoty kritérií.
+    type: Label
+  layout_properties: {grid_position: 'KBCOPA,ZNHHWN'}
+  name: card_2
+  properties: {role: card, visible: true}
+  type: ColumnPanel
+- components:
+  - event_bindings: {click: link_ahp_click}
+    layout_properties: {grid_position: 'KDFYSQ,VLSJSL'}
+    name: link_electre
+    properties: {align: left, bold: true, font_size: 18, role: null, text: Elimination Et Choix Traduisant la Réalité (ELECTRE), visible: true}
+    type: Link
+  - layout_properties: {grid_position: 'LFDSGU,ICAPWR'}
+    name: label_1_copy
+    properties:
+      align: left
+      text: |-
+        Princip: Využívá konceptu „outranking“ (převyšování) – zjišťuje, zda je varianta A „dostatečně lepší“ než varianta B pro většinu kritérií.
+
+        Využití: Užitečné tam, kde není jasné lineární pořadí, ale je třeba zohlednit i hraniční případy a konflikty mezi kritérii.
+    type: Label
+  layout_properties: {grid_position: 'OMHSJD,UBTLAE'}
+  name: card_1_copy
+  properties: {role: card, visible: true}
+  type: ColumnPanel
+container: {type: ColumnPanel}
+is_package: true

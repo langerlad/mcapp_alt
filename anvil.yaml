@@ -25,6 +25,27 @@ db_schema:
       type: string
     server: full
     title: Analyza
+  analyzy:
+    client: none
+    columns:
+    - admin_ui: {order: 0, width: 200}
+      name: uzivatel
+      target: users
+      type: link_single
+    - admin_ui: {order: 1, width: 200}
+      name: nazev
+      type: string
+    - admin_ui: {order: 2, width: 200}
+      name: data_json
+      type: simpleObject
+    - admin_ui: {order: 3, width: 200}
+      name: datum_vytvoreni
+      type: datetime
+    - admin_ui: {order: 4, width: 200}
+      name: datum_upravy
+      type: datetime
+    server: full
+    title: Analyzy
   hodnota:
     client: none
     columns:

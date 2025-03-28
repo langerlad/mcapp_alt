@@ -110,34 +110,6 @@ db_schema:
       type: string
     server: full
     title: Varianta
-  vysledekanalyzy:
-    client: none
-    columns:
-    - admin_ui: {order: 0, width: 200}
-      name: analyza
-      target: analyza
-      type: link_single
-    - admin_ui: {order: 1, width: 200}
-      name: varianta
-      target: varianta
-      type: link_single
-    - admin_ui: {order: 2, width: 200}
-      name: metoda
-      type: string
-    - admin_ui: {order: 3, width: 200}
-      name: skore
-      type: number
-    - admin_ui: {order: 4, width: 200}
-      name: poradi
-      type: number
-    - admin_ui: {order: 5, width: 200}
-      name: datum_vypoctu
-      type: datetime
-    - admin_ui: {order: 6, width: 200}
-      name: detailni_vystup
-      type: string
-    server: full
-    title: VysledekAnalyzy
 dependencies: []
 metadata: {description: Vícekriteriální analýza variant., logo_img: 'asset:Bez názvu.png', title: MCApp}
 name: MCApp_dbv

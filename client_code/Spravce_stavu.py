@@ -1,5 +1,5 @@
 # -------------------------------------------------------
-# Modul: Spravce_stavu 
+# Modul: Spravce_stavu
 # -------------------------------------------------------
 
 import anvil.server
@@ -33,11 +33,14 @@ class Spravce_stavu:
         self._aktivni_analyza_id = None
         self._rezim_upravy = False
         
-        # Cache dat
-        self._data_analyzy = {}
-        self._data_kriterii = []
-        self._data_variant = []
-        self._data_hodnot = {'matice_hodnoty': {}}
+        # Data analýzy
+        self._data_analyzy = {
+            "nazev": "",
+            "popis": "",
+            "kriteria": [],
+            "varianty": [],
+            "hodnoty": {"matice_hodnoty": {}}
+        }
         
         Utils.zapsat_info("Spravce_stavu inicializován")
     
@@ -140,21 +143,28 @@ class Spravce_stavu:
         """
         self._aktivni_analyza_id = None
         self._rezim_upravy = False
-        self._data_analyzy = {}
-        self._data_kriterii = []
-        self._data_variant = []
-        self._data_hodnot = {'matice_hodnoty': {}}
+        self._data_analyzy = {
+            "nazev": "",
+            "popis": "",
+            "kriteria": [],
+            "varianty": [],
+            "hodnoty": {"matice_hodnoty": {}}
+        }
+        Utils.zapsat_info("Data analýzy vyčištěna")
     
     # === Metody pro práci s daty analýzy ===
     
-    def uloz_data_analyzy(self, data):
+    def uloz_zakladni_data_analyzy(self, nazev, popis):
         """
-        Uloží základní data analýzy.
+        Uloží základní údaje analýzy.
         
         Args:
-            data (dict): Data analýzy
+            nazev (str): Název analýzy
+            popis (str): Popis analýzy
         """
-        self._data_analyzy = data
+        self._data_analyzy["nazev"] = nazev
+        self._data_analyzy["popis"] = popis
+        Utils.zapsat_info(f"Uložena základní data analýzy: {nazev}")
     
     def uloz_kriteria(self, kriteria):
         """
@@ -163,7 +173,8 @@ class Spravce_stavu:
         Args:
             kriteria (list): Seznam kritérií
         """
-        self._data_kriterii = kriteria
+        self._data_analyzy["kriteria"] = kriteria
+        Utils.zapsat_info(f"Uloženo {len(kriteria)} kritérií")
     
     def uloz_varianty(self, varianty):
         """
@@ -172,7 +183,8 @@ class Spravce_stavu:
         Args:
             varianty (list): Seznam variant
         """
-        self._data_variant = varianty
+        self._data_analyzy["varianty"] = varianty
+        Utils.zapsat_info(f"Uloženo {len(varianty)} variant")
     
     def uloz_hodnoty(self, hodnoty):
         """
@@ -181,16 +193,26 @@ class Spravce_stavu:
         Args:
             hodnoty (dict): Slovník s hodnotami matice
         """
-        self._data_hodnot = hodnoty
+        self._data_analyzy["hodnoty"] = hodnoty
+        Utils.zapsat_info(f"Uloženo {len(hodnoty.get('matice_hodnoty', {}))} hodnot")
     
-    def ziskej_data_analyzy(self):
+    def ziskej_nazev(self):
         """
-        Vrátí základní data analýzy.
+        Vrátí název analýzy.
         
         Returns:
-            dict: Data analýzy
+            str: Název analýzy
         """
-        return self._data_analyzy
+        return self._data_analyzy.get("nazev", "")
+    
+    def ziskej_popis(self):
+        """
+        Vrátí popis analýzy.
+        
+        Returns:
+            str: Popis analýzy
+        """
+        return self._data_analyzy.get("popis", "")
     
     def ziskej_kriteria(self):
         """
@@ -199,7 +221,7 @@ class Spravce_stavu:
         Returns:
             list: Seznam kritérií
         """
-        return self._data_kriterii
+        return self._data_analyzy.get("kriteria", [])
     
     def ziskej_varianty(self):
         """
@@ -208,7 +230,7 @@ class Spravce_stavu:
         Returns:
             list: Seznam variant
         """
-        return self._data_variant
+        return self._data_analyzy.get("varianty", [])
     
     def ziskej_hodnoty(self):
         """
@@ -217,7 +239,16 @@ class Spravce_stavu:
         Returns:
             dict: Slovník s hodnotami matice
         """
-        return self._data_hodnot
+        return self._data_analyzy.get("hodnoty", {"matice_hodnoty": {}})
+    
+    def ziskej_kompletni_data(self):
+        """
+        Vrátí kompletní data analýzy.
+        
+        Returns:
+            dict: Slovník s kompletními daty analýzy
+        """
+        return self._data_analyzy
     
     # === Metody pro načítání dat ze serveru ===
     
@@ -238,13 +269,18 @@ class Spravce_stavu:
         id_pro_nacteni = analyza_id or self._aktivni_analyza_id
         
         try:
-            data = anvil.server.call('nacti_kompletni_analyzu', id_pro_nacteni)
+            data = anvil.server.call('nacti_analyzu', id_pro_nacteni)
             
             if data:
-                self._data_analyzy = data['analyza']
-                self._data_kriterii = data['kriteria']
-                self._data_variant = data['varianty']
-                self._data_hodnot = data['hodnoty']
+                # Uložení základních dat
+                self._data_analyzy = {
+                    "nazev": data.get("nazev", ""),
+                    "popis": data.get("popis", ""),
+                    "kriteria": data.get("kriteria", []),
+                    "varianty": data.get("varianty", []),
+                    "hodnoty": data.get("hodnoty", {"matice_hodnoty": {}})
+                }
+                
                 self._aktivni_analyza_id = id_pro_nacteni
                 
                 Utils.zapsat_info(f"Analýza úspěšně načtena: {id_pro_nacteni}")
@@ -255,4 +291,45 @@ class Spravce_stavu:
                 
         except Exception as e:
             Utils.zapsat_chybu(f"Chyba při načítání analýzy: {str(e)}")
+            return False
+            
+    def uloz_analyzu_na_server(self):
+        """
+        Uloží kompletní analýzu na server.
+        
+        Returns:
+            bool: True pokud uložení proběhlo úspěšně, jinak False
+        """
+        try:
+            if not self._aktivni_analyza_id:
+                # Vytvoření nové analýzy
+                analyza_id = anvil.server.call('vytvor_analyzu', 
+                                               self._data_analyzy.get("nazev", ""), 
+                                               self._data_analyzy.get("popis", ""))
+                
+                if not analyza_id:
+                    Utils.zapsat_chybu("Nepodařilo se vytvořit novou analýzu")
+                    return False
+                    
+                self._aktivni_analyza_id = analyza_id
+                
+            # Příprava dat pro uložení
+            data = {
+                "popis": self._data_analyzy.get("popis", ""),
+                "kriteria": self._data_analyzy.get("kriteria", []),
+                "varianty": self._data_analyzy.get("varianty", []),
+                "hodnoty": self._data_analyzy.get("hodnoty", {"matice_hodnoty": {}})
+            }
+            
+            # Uložení/aktualizace analýzy
+            anvil.server.call('uprav_analyzu', 
+                              self._aktivni_analyza_id,
+                              self._data_analyzy.get("nazev", ""),
+                              data)
+            
+            Utils.zapsat_info(f"Analýza úspěšně uložena: {self._aktivni_analyza_id}")
+            return True
+            
+        except Exception as e:
+            Utils.zapsat_chybu(f"Chyba při ukládání analýzy: {str(e)}")
             return False

@@ -140,7 +140,7 @@ db_schema:
     title: VysledekAnalyzy
 dependencies: []
 metadata: {description: Vícekriteriální analýza variant., logo_img: 'asset:Bez názvu.png', title: MCApp}
-name: Clone of MCApp
+name: MCApp_dbv
 package_name: MCApp
 runtime_options:
   client_version: '3'

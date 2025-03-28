@@ -44,11 +44,8 @@ class Analyza_Row(Analyza_RowTemplate):
             # Vyčistíme předchozí stav před načtením nové analýzy
             self.spravce.vycisti_data_analyzy()
             
-            # Nastavíme ID upravované analýzy
+            # Nastavíme ID upravované analýzy - toto je vše co potřebujeme
             self.spravce.nastav_aktivni_analyzu(self.item['id'], True)
-            
-            # Zavoláme serverovou metodu pro nastavení ID v session (zpětná kompatibilita)
-            anvil.server.call('set_edit_analyza_id', self.item['id'])
             
             # Přejdeme na stránku úpravy analýzy
             Navigace.go('uprava_analyzy')
@@ -78,9 +75,6 @@ class Analyza_Row(Analyza_RowTemplate):
         Zobrazí dialog pro výběr metody analýzy.
         """
         try:
-            # Vytvoříme jednoduchý dialog s výběrem metody
-            # from anvil import alert, DropDown, Button, Label, FlowPanel
-            
             # Definice dostupných metod
             dostupne_metody = [
                 ("Simple Additive Weighting (SAW/WSM)", "saw"),
@@ -153,40 +147,3 @@ class Analyza_Row(Analyza_RowTemplate):
         except Exception as e:
             Utils.zapsat_chybu(f"Chyba při přechodu na výstup metody {metoda_kod}: {str(e)}")
             alert(f"Chyba při zobrazení výstupu analýzy: {str(e)}")
-
-
-
-    # def button_vypocet_click(self, **event_args):
-    #     """
-    #     Zpracuje požadavek na zobrazení výstupu analýzy.
-    #     """
-    #     try:
-    #         # Nastavíme ID aktivní analýzy (pouze pro zobrazení)
-    #         self.spravce.nastav_aktivni_analyzu(self.item['id'], False)
-            
-    #         # Přejdeme na stránku s výstupem
-    #         Navigace.go('saw_vystup', analyza_id=self.item['id'])
-            
-    #     except Exception as e:
-    #         Utils.zapsat_chybu(f"Chyba při přechodu na výstup analýzy: {str(e)}")
-    #         alert(f"Chyba při zobrazení výstupu analýzy: {str(e)}")
-            
-    # def button_klonovat_click(self, **event_args):
-    #     """
-    #     Zpracuje požadavek na klonování analýzy.
-    #     """
-    #     if not hasattr(self, 'button_klonovat') or not self.button_klonovat:
-    #         return
-            
-    #     if Utils.zobraz_potvrzovaci_dialog(f"Opravdu chcete vytvořit kopii analýzy '{self.item['nazev']}'?"):
-    #         try:
-    #             # Tuto funkci byste museli implementovat na serveru
-    #             nova_analyza_id = anvil.server.call('klonuj_analyzu', self.item['id'])
-                
-    #             if nova_analyza_id:
-    #                 alert(f"Analýza byla úspěšně naklonována.")
-    #                 self.parent.raise_event('x-refresh')
-                    
-    #         except Exception as e:
-    #             Utils.zapsat_chybu(f"Chyba při klonování analýzy: {str(e)}")
-    #             alert(f"Chyba při klonování analýzy: {str(e)}")

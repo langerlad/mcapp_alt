@@ -41,14 +41,14 @@ class Vystup_saw_komp(Vystup_saw_kompTemplate):
         try:
             Utils.zapsat_info(f"Načítám výsledky analýzy ID: {self.analyza_id}")
             
-            # Jediné volání serveru - získání dat analýzy
-            analyza_data = anvil.server.call('nacti_kompletni_analyzu', self.analyza_id)
+            # Načtení dat analýzy z nové JSON struktury
+            analyza_data = anvil.server.call('nacti_analyzu', self.analyza_id)
             
             # Uložení dat do správce stavu pro případné další použití
-            self.spravce.uloz_data_analyzy(analyza_data['analyza'])
-            self.spravce.uloz_kriteria(analyza_data['kriteria'])
-            self.spravce.uloz_varianty(analyza_data['varianty'])
-            self.spravce.uloz_hodnoty(analyza_data['hodnoty'])
+            self.spravce.uloz_zakladni_data_analyzy(analyza_data.get("nazev", ""), analyza_data.get("popis", ""))
+            self.spravce.uloz_kriteria(analyza_data.get("kriteria", []))
+            self.spravce.uloz_varianty(analyza_data.get("varianty", []))
+            self.spravce.uloz_hodnoty(analyza_data.get("hodnoty", {"matice_hodnoty": {}}))
             
             # Zobrazení výsledků
             self._zobraz_kompletni_analyzu(analyza_data)
@@ -97,36 +97,36 @@ class Vystup_saw_komp(Vystup_saw_kompTemplate):
         """Zobrazí vstupní data analýzy v přehledné formě."""
         try:
             md = f"""
-### {analyza_data['analyza']['nazev']}
+### {analyza_data['nazev']}
 
 #### Základní informace
 - Metoda: SAW
-- Popis: {analyza_data['analyza']['popis'] or 'Bez popisu'}
+- Popis: {analyza_data.get('popis', 'Bez popisu')}
 
 #### Kritéria
 | Název kritéria | Typ | Váha |
 |----------------|-----|------|
 """
             # Přidání kritérií
-            for k in analyza_data['kriteria']:
+            for k in analyza_data.get('kriteria', []):
                 vaha = float(k['vaha'])
                 md += f"| {k['nazev_kriteria']} | {k['typ'].upper()} | {vaha:.3f} |\n"
 
             # Varianty
             md += "\n#### Varianty\n"
-            for v in analyza_data['varianty']:
-                popis = f" - {v['popis_varianty']}" if v['popis_varianty'] else ""
+            for v in analyza_data.get('varianty', []):
+                popis = f" - {v['popis_varianty']}" if v.get('popis_varianty') else ""
                 md += f"- {v['nazev_varianty']}{popis}\n"
 
             # Hodnotící matice
-            varianty = [v['nazev_varianty'] for v in analyza_data['varianty']]
-            kriteria = [k['nazev_kriteria'] for k in analyza_data['kriteria']]
+            varianty = [v['nazev_varianty'] for v in analyza_data.get('varianty', [])]
+            kriteria = [k['nazev_kriteria'] for k in analyza_data.get('kriteria', [])]
             
             md += "\n#### Hodnotící matice\n"
             md += f"| Kritérium | {' | '.join(varianty)} |\n"
             md += f"|{'-' * 10}|{('|'.join('-' * 12 for _ in varianty))}|\n"
             
-            matice = analyza_data['hodnoty']['matice_hodnoty']
+            matice = analyza_data.get('hodnoty', {}).get('matice_hodnoty', {})
             for krit in kriteria:
                 radek = f"| {krit} |"
                 for var in varianty:
@@ -232,16 +232,16 @@ class Vystup_saw_komp(Vystup_saw_kompTemplate):
             dict: Slovník obsahující normalizovanou matici a metadata
         """
         try:
-            varianty = [v['nazev_varianty'] for v in analyza_data['varianty']]
-            kriteria = [k['nazev_kriteria'] for k in analyza_data['kriteria']]
+            varianty = [v['nazev_varianty'] for v in analyza_data.get('varianty', [])]
+            kriteria = [k['nazev_kriteria'] for k in analyza_data.get('kriteria', [])]
             
             # Vytvoření původní matice
             matice = []
-            for var in analyza_data['varianty']:
+            for var in analyza_data.get('varianty', []):
                 radek = []
-                for krit in analyza_data['kriteria']:
+                for krit in analyza_data.get('kriteria', []):
                     klic = f"{var['nazev_varianty']}_{krit['nazev_kriteria']}"
-                    hodnota = float(analyza_data['hodnoty']['matice_hodnoty'].get(klic, 0))
+                    hodnota = float(analyza_data.get('hodnoty', {}).get('matice_hodnoty', {}).get(klic, 0))
                     radek.append(hodnota)
                 matice.append(radek)
             
@@ -258,7 +258,7 @@ class Vystup_saw_komp(Vystup_saw_kompTemplate):
                         norm_hodnota = 1.0  # Všechny hodnoty jsou stejné
                     else:
                         # Pro MIN kritéria obrátíme normalizaci
-                        if analyza_data['kriteria'][j]['typ'].lower() in ("min", "cost"):
+                        if analyza_data.get('kriteria', [])[j]['typ'].lower() in ("min", "cost"):
                             norm_hodnota = (max_val - matice[i][j]) / (max_val - min_val)
                         else:
                             norm_hodnota = (matice[i][j] - min_val) / (max_val - min_val)
@@ -293,7 +293,7 @@ class Vystup_saw_komp(Vystup_saw_kompTemplate):
                 vazene_hodnoty[varianta] = {}
                 for j, kriterium in enumerate(norm_vysledky['nazvy_kriterii']):
                     norm_hodnota = norm_vysledky['normalizovana_matice'][i][j]
-                    vaha = float(analyza_data['kriteria'][j]['vaha'])
+                    vaha = float(analyza_data.get('kriteria', [])[j]['vaha'])
                     vazene_hodnoty[varianta][kriterium] = norm_hodnota * vaha
             
             return vazene_hodnoty
@@ -447,7 +447,7 @@ Normalizací převedeme všechny hodnoty do intervalu [0,1].
             colors = []  # Barvy pro sloupce
             
             # Seřazení dat podle skóre (sestupně)
-            for varianta, _, hodnota in saw_vysledky['results']:
+            for varianta, poradi, hodnota in saw_vysledky['results']:
                 varianty.append(varianta)
                 skore.append(hodnota)
                 # Nejlepší varianta bude mít zelenou, nejhorší červenou

@@ -35,7 +35,7 @@ class Dashboard_uziv_komp(Dashboard_uziv_kompTemplate):
         """
         Utils.zapsat_info("Načítám seznam analýz")
         try:
-            # Načtení analýz z serveru
+            # Načtení analýz z nového serverového modulu
             analyzy = anvil.server.call('nacti_analyzy_uzivatele')
             
             if not analyzy:
@@ -52,11 +52,12 @@ class Dashboard_uziv_komp(Dashboard_uziv_kompTemplate):
             # Formátování dat pro repeating panel
             self.repeating_panel_dashboard.items = [
                 {
-                    'id': a.get_id(),
+                    'id': a['id'],
                     'nazev': a['nazev'],
-                    'popis': a['popis'],
+                    'popis': a.get('popis', ''),
                     'datum_vytvoreni': a['datum_vytvoreni'].strftime("%d.%m.%Y") if a['datum_vytvoreni'] else "",
                     'datum_upravy': a['datum_upravy'].strftime("%d.%m.%Y") if a['datum_upravy'] else "",
+                    'zvolena_metoda': "SAW"  # Výchozí hodnota pro metodu
                 } for a in analyzy
             ]
             
@@ -66,24 +67,12 @@ class Dashboard_uziv_komp(Dashboard_uziv_kompTemplate):
             Utils.zapsat_chybu(f"Chyba při načítání analýz: {str(e)}")
             alert(f"Chyba při načítání analýz: {str(e)}")
 
-    # def button_pridat_analyzu_click(self, **event_args):
-    #     """
-    #     Přechod na stránku pro přidání nové analýzy.
-    #     """
-    #     # Vyčistíme předchozí stav analýzy před vytvořením nové
-    #     self.spravce.vycisti_data_analyzy()
-        
-    #     # Přejdeme na stránku pro přidání analýzy
-    #     Navigace.go('pridat_analyzu')
-
-
     def button_pridat_analyzu_click(self, **event_args):
         """
         Přechod na stránku pro přidání nové analýzy.
-        Nyní přeskakuje výběr metody a směřuje přímo na formulář pro zadání dat Wizard_komp.
         """
         # Vyčistíme předchozí stav analýzy před vytvořením nové
         self.spravce.vycisti_data_analyzy()
         
-        # Přejdeme přímo na stránku pro zadání dat analýzy
-        Navigace.go('saw_vstup')  # Stále používáme 'saw_vstup', ale později to změníme
+        # Přejdeme na stránku pro zadání dat analýzy
+        Navigace.go('saw_vstup')

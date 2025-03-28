@@ -151,7 +151,7 @@ def vytvor_analyzu(nazev: str, popis: str = "") -> str:
         }
         
         # Vytvoření záznamu v databázi
-        analyza = app_tables.Analyzy.add_row(
+        analyza = app_tables.analyzy.add_row(
             nazev=nazev,
             uzivatel=uzivatel,
             data_json=data_json,
@@ -176,7 +176,7 @@ def nacti_analyzu(analyza_id: str) -> Dict:
         Dict: Slovník s daty analýzy
     """
     try:
-        analyza = app_tables.Analyzy.get_by_id(analyza_id)
+        analyza = app_tables.analyzy.get_by_id(analyza_id)
         if not analyza:
             raise ValueError(f"Analýza s ID {analyza_id} neexistuje.")
             
@@ -208,7 +208,7 @@ def uprav_analyzu(analyza_id: str, nazev: str = None, data: Dict = None) -> None
         data: Nová data JSON (volitelné)
     """
     try:
-        analyza = app_tables.Analyzy.get_by_id(analyza_id)
+        analyza = app_tables.analyzy.get_by_id(analyza_id)
         if not analyza:
             raise ValueError(f"Analýza s ID {analyza_id} neexistuje.")
         
@@ -249,7 +249,7 @@ def smaz_analyzu(analyza_id: str) -> bool:
         bool: True pokud byla analýza úspěšně smazána
     """
     try:
-        analyza = app_tables.Analyzy.get_by_id(analyza_id)
+        analyza = app_tables.analyzy.get_by_id(analyza_id)
         if not analyza:
             return False
             
@@ -280,7 +280,7 @@ def klonuj_analyzu(analyza_id: str) -> str:
     """
     try:
         # Načtení původní analýzy
-        puvodni = app_tables.Analyzy.get_by_id(analyza_id)
+        puvodni = app_tables.analyzy.get_by_id(analyza_id)
         if not puvodni:
             raise ValueError(f"Analýza s ID {analyza_id} neexistuje.")
         
@@ -298,7 +298,7 @@ def klonuj_analyzu(analyza_id: str) -> str:
         novy_nazev = f"Kopie - {puvodni['nazev']}"
         
         # Vytvoření nové analýzy
-        nova_analyza = app_tables.Analyzy.add_row(
+        nova_analyza = app_tables.analyzy.add_row(
             nazev=novy_nazev,
             uzivatel=aktualni_uzivatel,
             data_json=puvodni["data_json"],

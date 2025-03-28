@@ -136,7 +136,27 @@ class Spravce_stavu:
             bool: True pokud je analýza v režimu úprav, jinak False
         """
         return self._rezim_upravy
+
+    def je_docasne_id(self):
+        """
+        Ověří, zda aktuální ID analýzy je dočasné.
+        
+        Returns:
+            bool: True pokud je ID dočasné, jinak False
+        """
+        return self._aktivni_analyza_id == "temp_id"
     
+    def ma_neulozena_data(self):
+        """
+        Kontroluje, zda jsou v cache data, která ještě nebyla uložena na server.
+        
+        Returns:
+            bool: True pokud existují neukládaná data, jinak False
+        """
+        # Máme data a máme buď dočasné ID nebo jsme v režimu úprav
+        return (bool(self._data_analyzy) and 
+                (self.je_docasne_id() or self._rezim_upravy))
+  
     def vycisti_data_analyzy(self):
         """
         Vyčistí všechna data související s analýzou.

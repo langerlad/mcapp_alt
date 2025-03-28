@@ -190,7 +190,7 @@ def smaz_uzivatele(email: str) -> bool:
         raise ValueError(f"Uživatel {email} nebyl nalezen")
         
     # Nejprve získáme a smažeme všechny analýzy uživatele
-    analyzy = app_tables.Analyzy.search(uzivatel=uzivatel)
+    analyzy = app_tables.analyzy.search(uzivatel=uzivatel)
     pocet_analyz = 0
     
     for analyza in analyzy:
@@ -229,17 +229,17 @@ def nacti_analyzy_uzivatele(limit: Optional[int] = None, sort_by: str = "datum_v
     try:
         # Načtení analýz uživatele podle požadovaného řazení
         if sort_by == "datum_vytvoreni":
-            analyzy = list(app_tables.Analyzy.search(
+            analyzy = list(app_tables.analyzy.search(
                 tables.order_by("datum_vytvoreni", ascending=False),
                 uzivatel=uzivatel
             ))
         elif sort_by == "datum_upravy":
-            analyzy = list(app_tables.Analyzy.search(
+            analyzy = list(app_tables.analyzy.search(
                 tables.order_by("datum_upravy", ascending=False),
                 uzivatel=uzivatel
             ))
         else:
-            analyzy = list(app_tables.Analyzy.search(
+            analyzy = list(app_tables.analyzy.search(
                 uzivatel=uzivatel
             ))
             
@@ -291,17 +291,17 @@ def nacti_analyzy_uzivatele_admin(email: str, sort_by: str = "datum_vytvoreni") 
         
         # Získání analýz uživatele
         if sort_by == "datum_vytvoreni":
-            analyzy = list(app_tables.Analyzy.search(
+            analyzy = list(app_tables.analyzy.search(
                 tables.order_by("datum_vytvoreni", ascending=False),
                 uzivatel=uzivatel
             ))
         elif sort_by == "datum_upravy":
-            analyzy = list(app_tables.Analyzy.search(
+            analyzy = list(app_tables.analyzy.search(
                 tables.order_by("datum_upravy", ascending=False),
                 uzivatel=uzivatel
             ))
         else:
-            analyzy = list(app_tables.Analyzy.search(
+            analyzy = list(app_tables.analyzy.search(
                 uzivatel=uzivatel
             ))
         
@@ -340,7 +340,7 @@ def vrat_pocet_analyz_pro_uzivatele(uzivatel) -> int:
         zapsat_info(f"Hledám analýzy pro uživatele: {uzivatel['email']}")
         
         # Převedeme výsledek vyhledávání na list a spočítáme jeho délku
-        analyzy = list(app_tables.Analyzy.search(uzivatel=uzivatel))
+        analyzy = list(app_tables.analyzy.search(uzivatel=uzivatel))
         pocet = len(analyzy)
         
         zapsat_info(f"Nalezeno analýz: {pocet}")

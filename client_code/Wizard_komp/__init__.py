@@ -1,5 +1,7 @@
 # -------------------------------------------------------
 # Form: Wizard_komp
+# Formulář pro vytváření a úpravu analýz.
+# Ukládá data do lokální cache a na server až v posledním kroku.
 # -------------------------------------------------------
 from ._anvil_designer import Wizard_kompTemplate
 from anvil import *
@@ -33,9 +35,9 @@ class Wizard_komp(Wizard_kompTemplate):
     self.repeating_panel_varianty.set_event_handler('x-refresh', self.nacti_varianty)
 
     if self.mode == Konstanty.STAV_ANALYZY['UPRAVA']: 
-        self.load_existing_analyza()
+        self.nacti_aktivni_analyzu()
 
-  def load_existing_analyza(self):
+  def nacti_aktivni_analyzu(self):
     """Načte existující analýzu pro editaci."""
     try:
         # Pokud nemáme ID analýzy ze správce stavu, zkusíme ho získat ze serveru
@@ -47,12 +49,19 @@ class Wizard_komp(Wizard_kompTemplate):
         if not self.analyza_id:
             raise Exception(Konstanty.ZPRAVY_CHYB['NEPLATNE_ID'])
         
-        # Načtení dat přes správce stavu
-        if self.spravce.nacti_kompletni_analyzu_ze_serveru(self.analyza_id):
+        # Načtení dat přímo ze serveru pouze jednou - na začátku úpravy
+        data = anvil.server.call('nacti_analyzu', self.analyza_id)
+        
+        if data:
+            # Nastavení dat ve správci stavu
+            self.spravce.uloz_zakladni_data_analyzy(data.get("nazev", ""), data.get("popis", ""))
+            self.spravce.uloz_kriteria(data.get("kriteria", []))
+            self.spravce.uloz_varianty(data.get("varianty", []))
+            self.spravce.uloz_hodnoty(data.get("hodnoty", {"matice_hodnoty": {}}))
+            
             # Nastavení polí formuláře z dat ve správci stavu
-            analyza_data = self.spravce.ziskej_data_analyzy()
-            self.text_box_nazev.text = analyza_data.get('nazev', '')
-            self.text_area_popis.text = analyza_data.get('popis', '')
+            self.text_box_nazev.text = self.spravce.ziskej_nazev()
+            self.text_area_popis.text = self.spravce.ziskej_popis()
             
             # Zobrazení dat z kritérií a variant
             self.nacti_kriteria()
@@ -66,6 +75,7 @@ class Wizard_komp(Wizard_kompTemplate):
         Navigace.go('domu')
       
   def button_dalsi_click(self, **event_args):
+    """Zpracuje klik na tlačítko Další v prvním kroku."""
     self.label_chyba.visible = False
     chyba = self.validace_vstupu()
     if chyba:
@@ -73,48 +83,26 @@ class Wizard_komp(Wizard_kompTemplate):
       self.label_chyba.visible = True
       return
 
-    # Cache analytických dat ve správci stavu
-    analyza_data = {
-      'nazev': self.text_box_nazev.text,
-      'popis': self.text_area_popis.text,
-    }
-    
-    self.spravce.uloz_data_analyzy(analyza_data)
+    # Uložení základních dat pouze do správce stavu
+    self.spravce.uloz_zakladni_data_analyzy(
+        nazev=self.text_box_nazev.text,
+        popis=self.text_area_popis.text
+    )
 
-    # Check if we're creating a brand new analysis or going back and forth
-    if self.mode == Konstanty.STAV_ANALYZY['NOVY']:
-      # Only create a new analysis if we don't already have an ID
-      if not self.analyza_id:
-        self.analyza_id = anvil.server.call(
-          "pridej_analyzu", 
-          analyza_data['nazev'],
-          analyza_data['popis'], 
-        )
-        # Aktualizujeme ID analýzy ve správci stavu
+    # Vytvoření ID pro novou analýzu (pouze při prvním průchodu)
+    if self.mode == Konstanty.STAV_ANALYZY['NOVY'] and not self.analyza_id:
+        # V tomto kroku jen vytvoříme ID ve správci stavu, ale neukládáme na server
+        # ID analýzy bude vygenerováno až při finálním uložení
+        self.analyza_id = "temp_id"  # Dočasné ID pro správce stavu
         self.spravce.nastav_aktivni_analyzu(self.analyza_id, False)
-        Utils.zapsat_info(f"Vytvořena nová analýza s ID: {self.analyza_id}")
-      else:
-        # If we already have an ID, just update the existing analysis
-        anvil.server.call(
-          'uprav_analyzu',
-          self.analyza_id,
-          analyza_data['nazev'],
-          analyza_data['popis'],
-        )
-        Utils.zapsat_info(f"Aktualizována existující analýza s ID: {self.analyza_id}")
-    else:
-      anvil.server.call(
-        'uprav_analyzu',
-        self.analyza_id,
-        analyza_data['nazev'],
-        analyza_data['popis'],
-      )
-      Utils.zapsat_info(f"Aktualizována editovaná analýza s ID: {self.analyza_id}")
+        Utils.zapsat_info(f"Vytvořeno dočasné ID analýzy: {self.analyza_id}")
 
+    # Přechod na další krok
     self.card_krok_1.visible = False
     self.card_krok_2.visible = True
 
   def validace_vstupu(self):
+    """Validuje vstupní data v prvním kroku."""
     if not self.text_box_nazev.text:
       return Konstanty.ZPRAVY_CHYB['NAZEV_PRAZDNY']
     if len(self.text_box_nazev.text) > Konstanty.VALIDACE['MAX_DELKA_NAZEV']:
@@ -122,6 +110,7 @@ class Wizard_komp(Wizard_kompTemplate):
     return None
 
   def button_pridej_kriterium_click(self, **event_args):
+    """Zpracuje přidání nového kritéria."""
     self.label_chyba_2.visible = False
     chyba_2 = self.validace_pridej_kriterium()
     if chyba_2:
@@ -139,7 +128,7 @@ class Wizard_komp(Wizard_kompTemplate):
       'vaha': self.vaha
     })
     
-    # Uložíme aktualizovaná kritéria
+    # Uložíme aktualizovaná kritéria pouze do správce stavu
     self.spravce.uloz_kriteria(kriteria)
 
     # Reset vstupních polí
@@ -147,9 +136,11 @@ class Wizard_komp(Wizard_kompTemplate):
     self.drop_down_typ.selected_value = None
     self.text_box_vaha.text = ""
 
+    # Aktualizace seznamu kritérií
     self.nacti_kriteria()
 
   def validace_pridej_kriterium(self):
+    """Validuje data pro přidání kritéria."""
     if not self.text_box_nazev_kriteria.text:
       return "Zadejte název kritéria."
     if not self.drop_down_typ.selected_value:
@@ -166,6 +157,7 @@ class Wizard_komp(Wizard_kompTemplate):
     return None
 
   def nacti_kriteria(self, **event_args):
+    """Načte kritéria ze správce stavu a zobrazí je v repeating panelu."""
     # Načtení kritérií ze správce stavu
     kriteria = self.spravce.ziskej_kriteria()
     
@@ -178,6 +170,7 @@ class Wizard_komp(Wizard_kompTemplate):
     ]
 
   def button_dalsi_2_click(self, **event_args):
+    """Zpracuje přechod z kroku 2 (kritéria) do kroku 3 (varianty)."""
     kriteria = self.spravce.ziskej_kriteria()
     if not kriteria:
       self.label_chyba_2.text = Konstanty.ZPRAVY_CHYB['MIN_KRITERIA']
@@ -190,6 +183,7 @@ class Wizard_komp(Wizard_kompTemplate):
       self.label_chyba_2.visible = True
       return
     
+    # Přechod na další krok - data jsou už uložena ve správci stavu
     self.label_chyba_2.visible = False
     self.card_krok_2.visible = False
     self.card_krok_3.visible = True
@@ -205,6 +199,7 @@ class Wizard_komp(Wizard_kompTemplate):
     return True, None
 
   def button_pridej_variantu_click(self, **event_args):
+    """Zpracuje přidání nové varianty."""
     self.label_chyba_3.visible = False
     chyba_3 = self.validace_pridej_variantu()
     if chyba_3:
@@ -221,20 +216,24 @@ class Wizard_komp(Wizard_kompTemplate):
       'popis_varianty': self.text_box_popis_varianty.text
     })
     
-    # Uložíme aktualizované varianty
+    # Uložíme aktualizované varianty pouze do správce stavu
     self.spravce.uloz_varianty(varianty)
 
+    # Reset vstupních polí
     self.text_box_nazev_varianty.text = ""
     self.text_box_popis_varianty.text = ""
 
+    # Aktualizace seznamu variant
     self.nacti_varianty()
 
   def validace_pridej_variantu(self):
+    """Validuje data pro přidání varianty."""
     if not self.text_box_nazev_varianty.text:
       return "Zadejte název varianty."
     return None
 
   def nacti_varianty(self, **event_args):
+    """Načte varianty ze správce stavu a zobrazí je v repeating panelu."""
     # Načtení variant ze správce stavu
     varianty = self.spravce.ziskej_varianty()
     
@@ -246,12 +245,14 @@ class Wizard_komp(Wizard_kompTemplate):
     ]
 
   def button_dalsi_3_click(self, **event_args):
+    """Zpracuje přechod z kroku 3 (varianty) do kroku 4 (matice hodnot)."""
     varianty = self.spravce.ziskej_varianty()
     if not varianty:
       self.label_chyba_3.text = Konstanty.ZPRAVY_CHYB['MIN_VARIANTY']
       self.label_chyba_3.visible = True
       return
-
+    
+    # Přechod na další krok - data jsou už uložena ve správci stavu
     self.card_krok_3.visible = False
     self.card_krok_4.visible = True
     self.zobraz_krok_4()
@@ -290,22 +291,47 @@ class Wizard_komp(Wizard_kompTemplate):
         
     try:
         # Získáme data ze správce stavu
+        nazev = self.spravce.ziskej_nazev()
+        popis = self.spravce.ziskej_popis()
         kriteria = self.spravce.ziskej_kriteria()
         varianty = self.spravce.ziskej_varianty()
         hodnoty = self.spravce.ziskej_hodnoty()
         
-        Utils.zapsat_info(f"Ukládám analýzu {self.analyza_id}")
+        Utils.zapsat_info("Připravuji uložení analýzy")
         Utils.zapsat_info(f"Počet kritérií: {len(kriteria)}")
         Utils.zapsat_info(f"Počet variant: {len(varianty)}")
         Utils.zapsat_info(f"Počet hodnot: {len(hodnoty.get('matice_hodnoty', {}))}")
         
-        anvil.server.call(
-            'uloz_kompletni_analyzu', 
-            self.analyza_id,
-            kriteria,
-            varianty,
-            hodnoty
-        )
+        # Příprava dat pro uložení na server
+        data_json = {
+            "popis": popis,
+            "kriteria": kriteria,
+            "varianty": varianty,
+            "hodnoty": hodnoty
+        }
+        
+        # Pro režim úpravy - existující ID
+        if self.mode == Konstanty.STAV_ANALYZY['UPRAVA'] and self.analyza_id and self.analyza_id != "temp_id":
+            # Aktualizace existující analýzy
+            anvil.server.call('uprav_analyzu', 
+                              self.analyza_id,
+                              nazev,
+                              data_json)
+            Utils.zapsat_info(f"Aktualizována analýza s ID: {self.analyza_id}")
+        else:
+            # Vytvoření nové analýzy
+            self.analyza_id = anvil.server.call('vytvor_analyzu', nazev, popis)
+            
+            if self.analyza_id:
+                # Aktualizace datové části
+                anvil.server.call('uprav_analyzu', 
+                                self.analyza_id,
+                                None,  # název už je nastaven
+                                data_json)
+                Utils.zapsat_info(f"Vytvořena nová analýza s ID: {self.analyza_id}")
+            else:
+                raise ValueError("Nepodařilo se vytvořit novou analýzu.")
+        
         self.mode = Konstanty.STAV_ANALYZY['ULOZENY']
         alert(Konstanty.ZPRAVY_CHYB['ANALYZA_ULOZENA'])
         
@@ -320,7 +346,7 @@ class Wizard_komp(Wizard_kompTemplate):
         self.label_chyba_4.visible = True
 
   def validuj_matici(self):
-    """Validuje a ukládá hodnoty matice."""
+    """Validuje a ukládá hodnoty matice do správce stavu."""
     matrix_values = {'matice_hodnoty': {}}
     errors = []
     
@@ -353,7 +379,7 @@ class Wizard_komp(Wizard_kompTemplate):
         self.label_chyba_4.visible = True
         return False
 
-    # Ukládáme validované hodnoty matice do správce stavu
+    # Ukládáme validované hodnoty matice pouze do správce stavu
     self.spravce.uloz_hodnoty(matrix_values)
     self.label_chyba_4.visible = False
     return True
@@ -374,16 +400,11 @@ class Wizard_komp(Wizard_kompTemplate):
     self.card_krok_4.visible = False
 
   def button_zrusit_click(self, **event_args):
-    """Handles the cancel button click."""
+    """Zruší vytváření/úpravu analýzy."""
     try:
         if self.mode == Konstanty.STAV_ANALYZY['NOVY']:
             if Utils.zobraz_potvrzovaci_dialog(Konstanty.ZPRAVY_CHYB['POTVRZENI_ZRUSENI_NOVE']):
-                if self.analyza_id:
-                    try:
-                        anvil.server.call('smaz_analyzu', self.analyza_id)
-                    except Exception as e:
-                        Utils.zapsat_chybu(f"Chyba při mazání analýzy: {str(e)}")
-                # Vyčistíme data ve správci stavu
+                # Pouze vyčistíme data ve správci stavu, nic nemusíme mazat z DB
                 self.spravce.vycisti_data_analyzy()
                 Navigace.go('domu')
                 

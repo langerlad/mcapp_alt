@@ -35,7 +35,7 @@ db_schema:
     - admin_ui: {order: 1, width: 200}
       name: nazev
       type: string
-    - admin_ui: {order: 2, width: 200}
+    - admin_ui: {order: 2, width: 299}
       name: data_json
       type: simpleObject
     - admin_ui: {order: 3, width: 200}

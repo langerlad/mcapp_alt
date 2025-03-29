@@ -17,6 +17,7 @@ class Vystup_saw_komp(Vystup_saw_kompTemplate):
     - normalizované matice
     - vážených hodnot
     - finálních výsledků
+    Upraveno pro novou JSON strukturu.
     """
     def __init__(self, analyza_id=None, metoda=None, **properties):
         self.init_components(**properties)
@@ -44,12 +45,6 @@ class Vystup_saw_komp(Vystup_saw_kompTemplate):
             # Načtení dat analýzy z nové JSON struktury
             analyza_data = anvil.server.call('nacti_analyzu', self.analyza_id)
             
-            # Uložení dat do správce stavu pro případné další použití
-            self.spravce.uloz_zakladni_data_analyzy(analyza_data.get("nazev", ""), analyza_data.get("popis", ""))
-            self.spravce.uloz_kriteria(analyza_data.get("kriteria", []))
-            self.spravce.uloz_varianty(analyza_data.get("varianty", []))
-            self.spravce.uloz_hodnoty(analyza_data.get("hodnoty", {"matice_hodnoty": {}}))
-            
             # Zobrazení výsledků
             self._zobraz_kompletni_analyzu(analyza_data)
             
@@ -72,9 +67,8 @@ class Vystup_saw_komp(Vystup_saw_kompTemplate):
         Zobrazí kompletní analýzu včetně všech výpočtů.
         
         Args:
-            analyza_data: Slovník s kompletními daty analýzy
+            analyza_data: Slovník s kompletními daty analýzy v novém formátu
         """
-          
         # Zobrazení vstupních dat
         self._zobraz_vstupni_data(analyza_data)
         
@@ -101,37 +95,37 @@ class Vystup_saw_komp(Vystup_saw_kompTemplate):
 
 #### Základní informace
 - Metoda: SAW
-- Popis: {analyza_data.get('popis', 'Bez popisu')}
+- Popis: {analyza_data.get('popis_analyzy', 'Bez popisu')}
 
 #### Kritéria
 | Název kritéria | Typ | Váha |
 |----------------|-----|------|
 """
             # Přidání kritérií
-            for k in analyza_data.get('kriteria', []):
-                vaha = float(k['vaha'])
-                md += f"| {k['nazev_kriteria']} | {k['typ'].upper()} | {vaha:.3f} |\n"
+            kriteria = analyza_data.get('kriteria', {})
+            for nazev_krit, krit_data in kriteria.items():
+                vaha = float(krit_data['vaha'])
+                md += f"| {nazev_krit} | {krit_data['typ'].upper()} | {vaha:.3f} |\n"
 
             # Varianty
             md += "\n#### Varianty\n"
-            for v in analyza_data.get('varianty', []):
-                popis = f" - {v['popis_varianty']}" if v.get('popis_varianty') else ""
-                md += f"- {v['nazev_varianty']}{popis}\n"
+            varianty = analyza_data.get('varianty', {})
+            for nazev_var, var_data in varianty.items():
+                popis = f" - {var_data.get('popis_varianty', '')}" if var_data.get('popis_varianty') else ""
+                md += f"- {nazev_var}{popis}\n"
 
             # Hodnotící matice
-            varianty = [v['nazev_varianty'] for v in analyza_data.get('varianty', [])]
-            kriteria = [k['nazev_kriteria'] for k in analyza_data.get('kriteria', [])]
+            kriteria_nazvy = list(kriteria.keys())
+            varianty_nazvy = list(varianty.keys())
             
             md += "\n#### Hodnotící matice\n"
-            md += f"| Kritérium | {' | '.join(varianty)} |\n"
-            md += f"|{'-' * 10}|{('|'.join('-' * 12 for _ in varianty))}|\n"
+            md += f"| Kritérium | {' | '.join(varianty_nazvy)} |\n"
+            md += f"|{'-' * 10}|{('|'.join('-' * 12 for _ in varianty_nazvy))}|\n"
             
-            matice = analyza_data.get('hodnoty', {}).get('matice_hodnoty', {})
-            for krit in kriteria:
-                radek = f"| {krit} |"
-                for var in varianty:
-                    klic = f"{var}_{krit}"
-                    hodnota = matice.get(klic, "N/A")
+            for nazev_krit in kriteria_nazvy:
+                radek = f"| {nazev_krit} |"
+                for nazev_var in varianty_nazvy:
+                    hodnota = varianty[nazev_var].get(nazev_krit, "N/A")
                     hodnota = f" {hodnota:.2f} |" if isinstance(hodnota, (int, float)) else f" {hodnota} |"
                     radek += hodnota
                 md += radek + "\n"
@@ -140,6 +134,129 @@ class Vystup_saw_komp(Vystup_saw_kompTemplate):
         except Exception as e:
             Utils.zapsat_chybu(f"Chyba při zobrazování vstupních dat: {str(e)}")
             self.rich_text_vstupni_data.content = f"Chyba při zobrazování vstupních dat: {str(e)}"
+
+    def _normalizuj_matici(self, analyza_data):
+        """
+        Provede min-max normalizaci hodnot.
+        
+        Args:
+            analyza_data: Slovník obsahující data analýzy v novém formátu
+        
+        Returns:
+            dict: Slovník obsahující normalizovanou matici a metadata
+        """
+        try:
+            kriteria = analyza_data.get('kriteria', {})
+            varianty = analyza_data.get('varianty', {})
+            
+            # Seznamy pro názvy
+            kriteria_nazvy = list(kriteria.keys())
+            varianty_nazvy = list(varianty.keys())
+            
+            # Vytvoření původní matice
+            matice = []
+            for nazev_var in varianty_nazvy:
+                radek = []
+                var_data = varianty[nazev_var]
+                for nazev_krit in kriteria_nazvy:
+                    hodnota = float(var_data.get(nazev_krit, 0))
+                    radek.append(hodnota)
+                matice.append(radek)
+            
+            # Normalizace pomocí min-max pro každý sloupec (kritérium)
+            norm_matice = []
+            for i in range(len(matice)):
+                norm_radek = []
+                for j in range(len(matice[0])):
+                    sloupec = [row[j] for row in matice]
+                    min_val = min(sloupec)
+                    max_val = max(sloupec)
+                    
+                    if max_val == min_val:
+                        norm_hodnota = 1.0  # Všechny hodnoty jsou stejné
+                    else:
+                        # Pro MIN kritéria obrátíme normalizaci
+                        krit_typ = kriteria[kriteria_nazvy[j]]['typ'].lower()
+                        if krit_typ in ("min", "cost"):
+                            norm_hodnota = (max_val - matice[i][j]) / (max_val - min_val)
+                        else:
+                            norm_hodnota = (matice[i][j] - min_val) / (max_val - min_val)
+                    
+                    norm_radek.append(norm_hodnota)
+                norm_matice.append(norm_radek)
+            
+            return {
+                'nazvy_variant': varianty_nazvy,
+                'nazvy_kriterii': kriteria_nazvy,
+                'normalizovana_matice': norm_matice
+            }
+        except Exception as e:
+            Utils.zapsat_chybu(f"Chyba při normalizaci matice: {str(e)}")
+            raise
+
+    def _vypocitej_vazene_hodnoty(self, analyza_data, norm_vysledky):
+        """
+        Vypočítá vážené hodnoty pro všechny varianty a kritéria.
+        
+        Args:
+            analyza_data: Slovník s daty analýzy v novém formátu
+            norm_vysledky: Výsledky normalizace
+            
+        Returns:
+            dict: Slovník vážených hodnot pro každou variantu a kritérium
+        """
+        try:
+            vazene_hodnoty = {}
+            kriteria = analyza_data.get('kriteria', {})
+            
+            for i, varianta in enumerate(norm_vysledky['nazvy_variant']):
+                vazene_hodnoty[varianta] = {}
+                for j, kriterium in enumerate(norm_vysledky['nazvy_kriterii']):
+                    norm_hodnota = norm_vysledky['normalizovana_matice'][i][j]
+                    vaha = float(kriteria[kriterium]['vaha'])
+                    vazene_hodnoty[varianta][kriterium] = norm_hodnota * vaha
+            
+            return vazene_hodnoty
+        except Exception as e:
+            Utils.zapsat_chybu(f"Chyba při výpočtu vážených hodnot: {str(e)}")
+            raise
+
+    def _vypocitej_saw_vysledky(self, analyza_data, vazene_hodnoty):
+        """
+        Vypočítá finální výsledky SAW analýzy.
+        
+        Args:
+            analyza_data: Slovník s daty analýzy v novém formátu
+            vazene_hodnoty: Slovník vážených hodnot
+            
+        Returns:
+            dict: Slovník obsahující seřazené výsledky a statistiky
+        """
+        try:
+            # Výpočet celkového skóre pro každou variantu
+            skore = {}
+            for varianta, hodnoty in vazene_hodnoty.items():
+                skore[varianta] = sum(hodnoty.values())
+            
+            # Seřazení variant podle skóre (sestupně)
+            serazene = sorted(skore.items(), key=lambda x: x[1], reverse=True)
+            
+            # Vytvoření seznamu výsledků s pořadím
+            results = []
+            for poradi, (varianta, hodnota) in enumerate(serazene, 1):
+                results.append((varianta, poradi, hodnota))
+            
+            return {
+                'results': results,
+                'nejlepsi_varianta': results[0][0],
+                'nejlepsi_skore': results[0][2],
+                'nejhorsi_varianta': results[-1][0],
+                'nejhorsi_skore': results[-1][2],
+                'rozdil_skore': results[0][2] - results[-1][2]
+            }
+        except Exception as e:
+            Utils.zapsat_chybu(f"Chyba při výpočtu SAW výsledků: {str(e)}")
+            raise
 
     def _zobraz_normalizaci(self, norm_vysledky, vazene_hodnoty):
         """
@@ -221,123 +338,6 @@ class Vystup_saw_komp(Vystup_saw_kompTemplate):
             self.rich_text_vysledek.content = f"Chyba při zobrazování výsledků: {str(e)}"
             self.plot_saw_vysledek.visible = False
 
-    def _normalizuj_matici(self, analyza_data):
-        """
-        Provede min-max normalizaci hodnot.
-        
-        Args:
-            analyza_data: Slovník obsahující data analýzy
-        
-        Returns:
-            dict: Slovník obsahující normalizovanou matici a metadata
-        """
-        try:
-            varianty = [v['nazev_varianty'] for v in analyza_data.get('varianty', [])]
-            kriteria = [k['nazev_kriteria'] for k in analyza_data.get('kriteria', [])]
-            
-            # Vytvoření původní matice
-            matice = []
-            for var in analyza_data.get('varianty', []):
-                radek = []
-                for krit in analyza_data.get('kriteria', []):
-                    klic = f"{var['nazev_varianty']}_{krit['nazev_kriteria']}"
-                    hodnota = float(analyza_data.get('hodnoty', {}).get('matice_hodnoty', {}).get(klic, 0))
-                    radek.append(hodnota)
-                matice.append(radek)
-            
-            # Normalizace pomocí min-max pro každý sloupec (kritérium)
-            norm_matice = []
-            for i in range(len(matice)):
-                norm_radek = []
-                for j in range(len(matice[0])):
-                    sloupec = [row[j] for row in matice]
-                    min_val = min(sloupec)
-                    max_val = max(sloupec)
-                    
-                    if max_val == min_val:
-                        norm_hodnota = 1.0  # Všechny hodnoty jsou stejné
-                    else:
-                        # Pro MIN kritéria obrátíme normalizaci
-                        if analyza_data.get('kriteria', [])[j]['typ'].lower() in ("min", "cost"):
-                            norm_hodnota = (max_val - matice[i][j]) / (max_val - min_val)
-                        else:
-                            norm_hodnota = (matice[i][j] - min_val) / (max_val - min_val)
-                    
-                    norm_radek.append(norm_hodnota)
-                norm_matice.append(norm_radek)
-            
-            return {
-                'nazvy_variant': varianty,
-                'nazvy_kriterii': kriteria,
-                'normalizovana_matice': norm_matice
-            }
-        except Exception as e:
-            Utils.zapsat_chybu(f"Chyba při normalizaci matice: {str(e)}")
-            raise
-
-    def _vypocitej_vazene_hodnoty(self, analyza_data, norm_vysledky):
-        """
-        Vypočítá vážené hodnoty pro všechny varianty a kritéria.
-        
-        Args:
-            analyza_data: Slovník s daty analýzy
-            norm_vysledky: Výsledky normalizace
-            
-        Returns:
-            dict: Slovník vážených hodnot pro každou variantu a kritérium
-        """
-        try:
-            vazene_hodnoty = {}
-            
-            for i, varianta in enumerate(norm_vysledky['nazvy_variant']):
-                vazene_hodnoty[varianta] = {}
-                for j, kriterium in enumerate(norm_vysledky['nazvy_kriterii']):
-                    norm_hodnota = norm_vysledky['normalizovana_matice'][i][j]
-                    vaha = float(analyza_data.get('kriteria', [])[j]['vaha'])
-                    vazene_hodnoty[varianta][kriterium] = norm_hodnota * vaha
-            
-            return vazene_hodnoty
-        except Exception as e:
-            Utils.zapsat_chybu(f"Chyba při výpočtu vážených hodnot: {str(e)}")
-            raise
-
-    def _vypocitej_saw_vysledky(self, analyza_data, vazene_hodnoty):
-        """
-        Vypočítá finální výsledky SAW analýzy.
-        
-        Args:
-            analyza_data: Slovník s daty analýzy
-            vazene_hodnoty: Slovník vážených hodnot
-            
-        Returns:
-            dict: Slovník obsahující seřazené výsledky a statistiky
-        """
-        try:
-            # Výpočet celkového skóre pro každou variantu
-            skore = {}
-            for varianta, hodnoty in vazene_hodnoty.items():
-                skore[varianta] = sum(hodnoty.values())
-            
-            # Seřazení variant podle skóre (sestupně)
-            serazene = sorted(skore.items(), key=lambda x: x[1], reverse=True)
-            
-            # Vytvoření seznamu výsledků s pořadím
-            results = []
-            for poradi, (varianta, hodnota) in enumerate(serazene, 1):
-                results.append((varianta, poradi, hodnota))
-            
-            return {
-                'results': results,
-                'nejlepsi_varianta': results[0][0],
-                'nejlepsi_skore': results[0][2],
-                'nejhorsi_varianta': results[-1][0],
-                'nejhorsi_skore': results[-1][2],
-                'rozdil_skore': results[0][2] - results[-1][2]
-            }
-        except Exception as e:
-            Utils.zapsat_chybu(f"Chyba při výpočtu SAW výsledků: {str(e)}")
-            raise
-
     def _vytvor_vysvetleni_normalizace(self):
         """Vytvoří text s vysvětlením normalizace."""
         return """
@@ -412,22 +412,6 @@ Normalizací převedeme všechny hodnoty do intervalu [0,1].
    - Součet představuje celkové hodnocení varianty
    - Slouží jako základ pro určení pořadí variant
 
-"""
-
-    def _vytvor_vysvetleni_metody(self):
-        """Vytvoří text s vysvětlením metody SAW."""
-        return """
-
-#### Metoda SAW (Simple Additive Weighting)
-1. Princip metody
-   - Normalizace hodnot do intervalu [0,1]
-   - Vynásobení normalizovaných hodnot vahami
-   - Sečtení vážených hodnot pro každou variantu
-
-2. Interpretace výsledků
-   - Vyšší skóre znamená lepší variantu
-   - Výsledek zohledňuje všechna kritéria dle jejich vah
-   - Rozdíly ve skóre ukazují relativní kvalitu variant
 """
 
     def _vytvor_graf_vysledku(self, saw_vysledky):

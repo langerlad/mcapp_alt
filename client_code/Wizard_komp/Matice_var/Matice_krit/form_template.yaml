@@ -7,6 +7,7 @@ components:
   type: Label
 - data_bindings:
   - {code: 'self.item[''hodnota'']', property: text, writeback: false}
+  event_bindings: {lost_focus: text_box_matice_hodnota_lost_focus}
   layout_properties: {grid_position: 'BFUZSX,DYWLDB JJFJDG,NGMZUO'}
   name: text_box_matice_hodnota
   properties: {placeholder: Vyplňte hodnotu kritéria, type: text}

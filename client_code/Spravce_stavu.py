@@ -10,6 +10,7 @@ class Spravce_stavu:
     """
     Třída pro centralizovanou správu stavu aplikace.
     Implementovaná jako singleton pro zajištění konzistence stavu napříč komponentami.
+    Upraveno pro novou JSON strukturu dat.
     """
     
     _instance = None
@@ -33,16 +34,15 @@ class Spravce_stavu:
         self._aktivni_analyza_id = None
         self._rezim_upravy = False
         
-        # Data analýzy
+        # Data analýzy - nová struktura
         self._data_analyzy = {
             "nazev": "",
-            "popis": "",
-            "kriteria": [],
-            "varianty": [],
-            "hodnoty": {"matice_hodnoty": {}}
+            "popis_analyzy": "",
+            "kriteria": {},
+            "varianty": {}
         }
         
-        Utils.zapsat_info("Spravce_stavu inicializován")
+        Utils.zapsat_info("Spravce_stavu inicializován s novou strukturou dat")
     
     # === Metody pro práci s uživatelem ===
     
@@ -165,10 +165,9 @@ class Spravce_stavu:
         self._rezim_upravy = False
         self._data_analyzy = {
             "nazev": "",
-            "popis": "",
-            "kriteria": [],
-            "varianty": [],
-            "hodnoty": {"matice_hodnoty": {}}
+            "popis_analyzy": "",
+            "kriteria": {},
+            "varianty": {}
         }
         Utils.zapsat_info("Data analýzy vyčištěna")
     
@@ -183,38 +182,135 @@ class Spravce_stavu:
             popis (str): Popis analýzy
         """
         self._data_analyzy["nazev"] = nazev
-        self._data_analyzy["popis"] = popis
+        self._data_analyzy["popis_analyzy"] = popis
         Utils.zapsat_info(f"Uložena základní data analýzy: {nazev}")
     
-    def uloz_kriteria(self, kriteria):
+    def pridej_kriterium(self, nazev_kriteria, typ, vaha):
         """
-        Uloží kritéria analýzy.
+        Přidá nové kritérium do cache.
         
         Args:
-            kriteria (list): Seznam kritérií
+            nazev_kriteria (str): Název kritéria
+            typ (str): Typ kritéria (max nebo min)
+            vaha (float): Váha kritéria
         """
-        self._data_analyzy["kriteria"] = kriteria
-        Utils.zapsat_info(f"Uloženo {len(kriteria)} kritérií")
+        self._data_analyzy["kriteria"][nazev_kriteria] = {
+            "typ": typ,
+            "vaha": vaha
+        }
+        Utils.zapsat_info(f"Přidáno kritérium: {nazev_kriteria}")
     
-    def uloz_varianty(self, varianty):
+    def uprav_kriterium(self, stary_nazev, novy_nazev, typ, vaha):
         """
-        Uloží varianty analýzy.
+        Upraví existující kritérium v cache.
         
         Args:
-            varianty (list): Seznam variant
+            stary_nazev (str): Původní název kritéria
+            novy_nazev (str): Nový název kritéria
+            typ (str): Typ kritéria (max nebo min)
+            vaha (float): Váha kritéria
         """
-        self._data_analyzy["varianty"] = varianty
-        Utils.zapsat_info(f"Uloženo {len(varianty)} variant")
+        # Pokud se název nezměnil, jen aktualizujeme
+        if stary_nazev == novy_nazev:
+            self._data_analyzy["kriteria"][novy_nazev] = {
+                "typ": typ,
+                "vaha": vaha
+            }
+        else:
+            # Jinak vytvoříme nové a smažeme staré
+            self._data_analyzy["kriteria"][novy_nazev] = {
+                "typ": typ,
+                "vaha": vaha
+            }
+            del self._data_analyzy["kriteria"][stary_nazev]
+            
+            # Pokud je kritérium použito u variant, musíme přejmenovat i tam
+            for nazev_var, var_data in self._data_analyzy["varianty"].items():
+                if stary_nazev in var_data:
+                    hodnota = var_data[stary_nazev]
+                    var_data[novy_nazev] = hodnota
+                    del var_data[stary_nazev]
+        
+        Utils.zapsat_info(f"Upraveno kritérium: {novy_nazev}")
     
-    def uloz_hodnoty(self, hodnoty):
+    def smaz_kriterium(self, nazev_kriteria):
         """
-        Uloží hodnoty matice analýzy.
+        Odstraní kritérium z cache.
         
         Args:
-            hodnoty (dict): Slovník s hodnotami matice
+            nazev_kriteria (str): Název kritéria k odstranění
         """
-        self._data_analyzy["hodnoty"] = hodnoty
-        Utils.zapsat_info(f"Uloženo {len(hodnoty.get('matice_hodnoty', {}))} hodnot")
+        if nazev_kriteria in self._data_analyzy["kriteria"]:
+            del self._data_analyzy["kriteria"][nazev_kriteria]
+            
+            # Odstraníme kritérium i ze všech variant
+            for nazev_var, var_data in self._data_analyzy["varianty"].items():
+                if nazev_kriteria in var_data:
+                    del var_data[nazev_kriteria]
+                    
+            Utils.zapsat_info(f"Smazáno kritérium: {nazev_kriteria}")
+    
+    def pridej_variantu(self, nazev_varianty, popis_varianty=""):
+        """
+        Přidá novou variantu do cache.
+        
+        Args:
+            nazev_varianty (str): Název varianty
+            popis_varianty (str): Popis varianty
+        """
+        varianta = {"popis_varianty": popis_varianty}
+        self._data_analyzy["varianty"][nazev_varianty] = varianta
+        Utils.zapsat_info(f"Přidána varianta: {nazev_varianty}")
+    
+    def uprav_variantu(self, stary_nazev, novy_nazev, popis_varianty):
+        """
+        Upraví existující variantu v cache.
+        
+        Args:
+            stary_nazev (str): Původní název varianty
+            novy_nazev (str): Nový název varianty
+            popis_varianty (str): Popis varianty
+        """
+        # Získáme původní data varianty
+        if stary_nazev in self._data_analyzy["varianty"]:
+            var_data = self._data_analyzy["varianty"][stary_nazev].copy()
+            
+            # Aktualizujeme popis
+            var_data["popis_varianty"] = popis_varianty
+            
+            # Pokud se název změnil, vytvoříme novou a smažeme starou
+            if stary_nazev != novy_nazev:
+                self._data_analyzy["varianty"][novy_nazev] = var_data
+                del self._data_analyzy["varianty"][stary_nazev]
+            else:
+                # Jinak jen aktualizujeme
+                self._data_analyzy["varianty"][novy_nazev] = var_data
+                
+            Utils.zapsat_info(f"Upravena varianta: {novy_nazev}")
+    
+    def smaz_variantu(self, nazev_varianty):
+        """
+        Odstraní variantu z cache.
+        
+        Args:
+            nazev_varianty (str): Název varianty k odstranění
+        """
+        if nazev_varianty in self._data_analyzy["varianty"]:
+            del self._data_analyzy["varianty"][nazev_varianty]
+            Utils.zapsat_info(f"Smazána varianta: {nazev_varianty}")
+    
+    def uloz_hodnotu_varianty(self, nazev_varianty, nazev_kriteria, hodnota):
+        """
+        Uloží hodnotu kritéria pro danou variantu.
+        
+        Args:
+            nazev_varianty (str): Název varianty
+            nazev_kriteria (str): Název kritéria
+            hodnota (float): Hodnota kritéria pro danou variantu
+        """
+        if nazev_varianty in self._data_analyzy["varianty"]:
+            self._data_analyzy["varianty"][nazev_varianty][nazev_kriteria] = hodnota
+            Utils.zapsat_info(f"Uložena hodnota pro variantu {nazev_varianty}, kritérium {nazev_kriteria}: {hodnota}")
     
     def ziskej_nazev(self):
         """
@@ -232,34 +328,78 @@ class Spravce_stavu:
         Returns:
             str: Popis analýzy
         """
-        return self._data_analyzy.get("popis", "")
+        return self._data_analyzy.get("popis_analyzy", "")
     
     def ziskej_kriteria(self):
         """
         Vrátí kritéria analýzy.
         
         Returns:
+            dict: Slovník kritérií
+        """
+        return self._data_analyzy.get("kriteria", {})
+    
+    def ziskej_kriteria_jako_seznam(self):
+        """
+        Vrátí kritéria jako seznam slovníků pro kompatibilitu s původním UI.
+        
+        Returns:
             list: Seznam kritérií
         """
-        return self._data_analyzy.get("kriteria", [])
+        kriteria = self._data_analyzy.get("kriteria", {})
+        return [
+            {
+                "nazev_kriteria": nazev,
+                "typ": data["typ"],
+                "vaha": data["vaha"]
+            }
+            for nazev, data in kriteria.items()
+        ]
     
     def ziskej_varianty(self):
         """
         Vrátí varianty analýzy.
         
         Returns:
-            list: Seznam variant
+            dict: Slovník variant
         """
-        return self._data_analyzy.get("varianty", [])
+        return self._data_analyzy.get("varianty", {})
     
-    def ziskej_hodnoty(self):
+    def ziskej_varianty_jako_seznam(self):
         """
-        Vrátí hodnoty matice analýzy.
+        Vrátí varianty jako seznam slovníků pro kompatibilitu s původním UI.
         
         Returns:
-            dict: Slovník s hodnotami matice
+            list: Seznam variant
         """
-        return self._data_analyzy.get("hodnoty", {"matice_hodnoty": {}})
+        varianty = self._data_analyzy.get("varianty", {})
+        return [
+            {
+                "nazev_varianty": nazev,
+                "popis_varianty": data.get("popis_varianty", "")
+            }
+            for nazev, data in varianty.items()
+        ]
+    
+    def ziskej_hodnoty_matice(self):
+        """
+        Vrátí hodnoty matice variant a kritérií.
+        
+        Returns:
+            dict: Slovník s hodnotami pro každou kombinaci varianty a kritéria
+        """
+        # Připravíme data pro matici v původním UI formátu
+        matice = {}
+        varianty = self._data_analyzy.get("varianty", {})
+        kriteria = self._data_analyzy.get("kriteria", {})
+        
+        for nazev_var, var_data in varianty.items():
+            for nazev_krit in kriteria.keys():
+                klic = f"{nazev_var}_{nazev_krit}"
+                hodnota = var_data.get(nazev_krit, "")
+                matice[klic] = hodnota
+        
+        return {"matice_hodnoty": matice}
     
     def ziskej_kompletni_data(self):
         """
@@ -295,10 +435,9 @@ class Spravce_stavu:
                 # Uložení základních dat
                 self._data_analyzy = {
                     "nazev": data.get("nazev", ""),
-                    "popis": data.get("popis", ""),
-                    "kriteria": data.get("kriteria", []),
-                    "varianty": data.get("varianty", []),
-                    "hodnoty": data.get("hodnoty", {"matice_hodnoty": {}})
+                    "popis_analyzy": data.get("popis_analyzy", ""),
+                    "kriteria": data.get("kriteria", {}),
+                    "varianty": data.get("varianty", {})
                 }
                 
                 self._aktivni_analyza_id = id_pro_nacteni
@@ -321,27 +460,31 @@ class Spravce_stavu:
             bool: True pokud uložení proběhlo úspěšně, jinak False
         """
         try:
-            if not self._aktivni_analyza_id:
+            # Kontrola, zda jde o novou analýzu nebo aktualizaci
+            je_nova = not self._aktivni_analyza_id or self._aktivni_analyza_id == "temp_id"
+            
+            if je_nova:
                 # Vytvoření nové analýzy
                 analyza_id = anvil.server.call('vytvor_analyzu', 
-                                               self._data_analyzy.get("nazev", ""), 
-                                               self._data_analyzy.get("popis", ""))
+                                              self._data_analyzy.get("nazev", ""), 
+                                              self._data_analyzy.get("popis_analyzy", ""))
                 
                 if not analyza_id:
                     Utils.zapsat_chybu("Nepodařilo se vytvořit novou analýzu")
                     return False
                     
+                # Uložení ID do správce stavu
                 self._aktivni_analyza_id = analyza_id
-                
-            # Příprava dat pro uložení
+                Utils.zapsat_info(f"Vytvořena nová analýza s ID: {analyza_id}")
+            
+            # Příprava dat pro uložení/aktualizaci
             data = {
-                "popis": self._data_analyzy.get("popis", ""),
-                "kriteria": self._data_analyzy.get("kriteria", []),
-                "varianty": self._data_analyzy.get("varianty", []),
-                "hodnoty": self._data_analyzy.get("hodnoty", {"matice_hodnoty": {}})
+                "popis_analyzy": self._data_analyzy.get("popis_analyzy", ""),
+                "kriteria": self._data_analyzy.get("kriteria", {}),
+                "varianty": self._data_analyzy.get("varianty", {})
             }
             
-            # Uložení/aktualizace analýzy
+            # Uložení/aktualizace dat analýzy
             anvil.server.call('uprav_analyzu', 
                               self._aktivni_analyza_id,
                               self._data_analyzy.get("nazev", ""),

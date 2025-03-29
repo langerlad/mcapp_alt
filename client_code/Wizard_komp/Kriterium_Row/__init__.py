@@ -1,6 +1,7 @@
 # -------------------------------------------------------
 # RowTemplate: Kriterium_Row
 # client_code/Wizard_komp/Kriterium_Row/__init__.py
+# Upraveno pro novou strukturu dat.
 # -------------------------------------------------------
 from ._anvil_designer import Kriterium_RowTemplate
 from anvil import *
@@ -20,17 +21,11 @@ class Kriterium_Row(Kriterium_RowTemplate):
     Odstraní kritérium ze správce stavu a aktualizuje UI.
     """
     if Utils.zobraz_potvrzovaci_dialog("Opravdu chcete smazat toto kritérium?"):
-      # Získání aktuálních kritérií ze správce stavu
-      kriteria = self.spravce.ziskej_kriteria()
+      # Získáme název kritéria
+      nazev_kriteria = self.item['nazev_kriteria']
       
-      # Filtrace kritérií - odstranění zvoleného kritéria
-      nova_kriteria = [
-        k for k in kriteria
-        if k['nazev_kriteria'] != self.item['nazev_kriteria']
-      ]
-      
-      # Uložení aktualizovaných kritérií zpět do správce stavu
-      self.spravce.uloz_kriteria(nova_kriteria)
+      # Použijeme novou metodu pro smazání kritéria
+      self.spravce.smaz_kriterium(nazev_kriteria)
       
       # Aktualizace UI
       self.parent.raise_event('x-refresh')
@@ -66,17 +61,13 @@ class Kriterium_Row(Kriterium_RowTemplate):
       # Získání upravených dat
       updated_data = edit_form.ziskej_upravena_data()
       if updated_data:
-        # Získání aktuálních kritérií ze správce stavu
-        kriteria = self.spravce.ziskej_kriteria()
-        
-        # Aktualizace kritéria v seznamu
-        for k in kriteria:
-          if k['nazev_kriteria'] == self.item['nazev_kriteria']:
-            k.update(updated_data)
-            break
-        
-        # Uložení aktualizovaných kritérií zpět do správce stavu
-        self.spravce.uloz_kriteria(kriteria)
+        # Použijeme novou metodu pro úpravu kritéria
+        self.spravce.uprav_kriterium(
+            self.item['nazev_kriteria'],  # Původní název
+            updated_data['nazev_kriteria'],  # Nový název
+            updated_data['typ'], 
+            updated_data['vaha']
+        )
         
         # Aktualizace UI
         self.parent.raise_event('x-refresh')

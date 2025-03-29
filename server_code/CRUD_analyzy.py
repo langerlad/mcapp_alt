@@ -1,7 +1,7 @@
 # -------------------------------------------------------
 # Modul: CRUD_analyzy
 #
-# Modul obsahuje základní operace pro práci s analýzami v JSON formátu:
+# Modul obsahuje základní operace pro práci s analýzami v novém JSON formátu:
 # - Create: vytvoření nové analýzy (vytvor_analyzu)
 # - Read: načtení analýzy podle ID (nacti_analyzu)
 # - Update: aktualizace existující analýzy (uprav_analyzu)
@@ -10,7 +10,6 @@
 # Pomocné funkce:
 # - validuj_nazev_analyzy: Kontrola platnosti názvu analýzy
 # - validuj_data_analyzy: Kontrola struktury JSON dat analýzy
-# - validuj_kriteria: Kontrola kritérií včetně součtu vah
 # - handle_errors: Dekorátor pro jednotné zachytávání a logování chyb
 # -------------------------------------------------------
 import datetime
@@ -67,7 +66,7 @@ def validuj_nazev_analyzy(nazev: str) -> None:
 
 def validuj_data_analyzy(data: Dict) -> None:
     """
-    Validuje strukturu dat analýzy.
+    Validuje strukturu dat analýzy v novém formátu.
     
     Args:
         data: Data analýzy k validaci
@@ -79,69 +78,46 @@ def validuj_data_analyzy(data: Dict) -> None:
         raise ValueError("Data analýzy musí být dictionary.")
     
     # Kontrola, zda obsahuje všechny potřebné klíče
-    required_keys = ["popis", "kriteria", "varianty", "hodnoty"]
+    required_keys = ["popis_analyzy", "kriteria", "varianty"]
     missing_keys = [key for key in required_keys if key not in data]
     
     if missing_keys:
         raise ValueError(f"Chybí povinné klíče v datech analýzy: {', '.join(missing_keys)}")
         
     # Validace kritérií
-    kriteria = data.get("kriteria", [])
-    if not kriteria:
-        raise ValueError("Analýza musí obsahovat alespoň jedno kritérium.")
-        
-    validuj_kriteria(kriteria)
-    
-    # Validace variant
-    varianty = data.get("varianty", [])
-    if not varianty:
-        raise ValueError("Analýza musí obsahovat alespoň jednu variantu.")
-    
-    # Validace hodnot - nový formát matice
-    hodnoty = data.get("hodnoty", {})
-    if not isinstance(hodnoty, dict):
-        raise ValueError("Data analýzy musí obsahovat klíč 'hodnoty' jako slovník.")
-        
-    if "matice" not in hodnoty:
-        raise ValueError("Data analýzy musí obsahovat klíč 'hodnoty' s podklíčem 'matice'.")
-        
-    # Kontrola struktury matice (nový kompaktní formát)
-    matice = hodnoty.get("matice", {})
-    if not isinstance(matice, dict):
-        raise ValueError("Matice hodnot musí být slovník s ID variant jako klíči.")
-    
-    # Kontrola, zda matice obsahuje data pro všechny varianty
-    var_ids = [v.get('nazev_varianty') for v in varianty]
-    missing_vars = [var_id for var_id in var_ids if var_id not in matice]
-    
-    # Kontrola, zda některé varianty nemají chybějící data (volitelné)
-    if missing_vars and len(matice) > 0:  # Pokud máme nějaké hodnoty, ale některé varianty chybí
-        zapsat_info(f"Upozornění: Některé varianty nemají hodnoty: {', '.join(missing_vars)}")
-    
-    # Kontrola, zda matice obsahuje platné hodnoty
-    for var_id, krit_hodnoty in matice.items():
-        if not isinstance(krit_hodnoty, dict):
-            raise ValueError(f"Hodnoty pro variantu '{var_id}' musí být slovník.")
-
-def validuj_kriteria(kriteria: List[Dict]) -> None:
-    """
-    Validuje seznam kritérií včetně kontroly součtu vah.
-    
-    Args:
-        kriteria: Seznam kritérií k validaci
-        
-    Raises:
-        ValueError: Pokud kritéria nejsou validní
-    """
-    if not kriteria:
+    kriteria = data.get("kriteria", {})
+    if not isinstance(kriteria, dict) or not kriteria:
         raise ValueError("Analýza musí obsahovat alespoň jedno kritérium.")
     
+    # Kontrola struktury kritérií
+    for nazev_krit, krit_data in kriteria.items():
+        if not isinstance(krit_data, dict):
+            raise ValueError(f"Kritérium '{nazev_krit}' musí být dictionary s atributy.")
+        if "typ" not in krit_data or "vaha" not in krit_data:
+            raise ValueError(f"Kritérium '{nazev_krit}' musí obsahovat 'typ' a 'vahu'.")
+    
+    # Kontrola součtu vah kritérií
     try:
-        vahy_suma = sum(float(k['vaha']) for k in kriteria)
+        vahy_suma = sum(float(k_data['vaha']) for k_data in kriteria.values())
         if abs(vahy_suma - 1.0) > 0.001:  # Konstanty.VALIDACE['TOLERANCE_SOUCTU_VAH']
             raise ValueError(f"Součet vah musí být 1.0 (aktuálně: {vahy_suma:.3f}).")
     except (ValueError, TypeError, KeyError):
         raise ValueError("Neplatná hodnota váhy u některého z kritérií.")
+        
+    # Validace variant
+    varianty = data.get("varianty", {})
+    if not isinstance(varianty, dict) or not varianty:
+        raise ValueError("Analýza musí obsahovat alespoň jednu variantu.")
+    
+    # Kontrola struktury variant a hodnot kritérií
+    for nazev_var, var_data in varianty.items():
+        if not isinstance(var_data, dict):
+            raise ValueError(f"Varianta '{nazev_var}' musí být dictionary s atributy.")
+        
+        # Kontrola, zda varianta obsahuje hodnoty pro všechna kritéria
+        for nazev_krit in kriteria.keys():
+            if nazev_krit not in var_data and nazev_krit != "popis_varianty":
+                zapsat_info(f"Upozornění: Varianta '{nazev_var}' neobsahuje hodnotu pro kritérium '{nazev_krit}'")
 
 # =============== CRUD Operace ===============
 
@@ -149,7 +125,7 @@ def validuj_kriteria(kriteria: List[Dict]) -> None:
 @handle_errors
 def vytvor_analyzu(nazev: str, popis: str = "") -> str:
     """
-    Vytvoří novou analýzu v JSON formátu.
+    Vytvoří novou analýzu v novém JSON formátu.
     
     Args:
         nazev: Název nové analýzy
@@ -168,12 +144,11 @@ def vytvor_analyzu(nazev: str, popis: str = "") -> str:
     validuj_nazev_analyzy(nazev)
     
     try:
-        # Vytvoření základní JSON struktury pro analýzu
+        # Vytvoření základní JSON struktury pro analýzu v novém formátu
         data_json = {
-            "popis": popis,
-            "kriteria": [],
-            "varianty": [],
-            "hodnoty": {"matice_hodnoty": {}}
+            "popis_analyzy": popis,
+            "kriteria": {},
+            "varianty": {}
         }
         
         # Vytvoření záznamu v databázi

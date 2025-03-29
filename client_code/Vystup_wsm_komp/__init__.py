@@ -1,19 +1,17 @@
 from ._anvil_designer import Vystup_wsm_kompTemplate
 from anvil import *
-import plotly.graph_objects as go
 import anvil.server
 import anvil.tables as tables
 import anvil.tables.query as q
 from anvil.tables import app_tables
 import anvil.users
-from .. import Spravce_stavu, Utils, Vypocty
+from .. import Spravce_stavu, Utils, Vypocty, Vizualizace
 
 
 class Vystup_wsm_komp(Vystup_wsm_kompTemplate):
     """
     Formulář pro zobrazení výsledků WSM analýzy (Weighted Sum Model).
-    Vylepšená verze původního SAW formuláře s detailnějšími výpočty.
-    Optimalizováno pro novou JSON strukturu.
+    Využívá sdílené moduly pro výpočty a vizualizace.
     """
     def __init__(self, analyza_id=None, **properties):
         self.init_components(**properties)
@@ -23,7 +21,7 @@ class Vystup_wsm_komp(Vystup_wsm_kompTemplate):
         # Použijeme ID z parametrů nebo z aktivní analýzy ve správci
         self.analyza_id = analyza_id or self.spravce.ziskej_aktivni_analyzu()
         
-        # Aktualizace nadpisu - WSM (Weighted Sum Model) je totožný s SAW
+        # Aktualizace nadpisu
         if hasattr(self, 'headline_1'):
             self.headline_1.text = "Analýza metodou WSM (Weighted Sum Model)"
         
@@ -36,7 +34,7 @@ class Vystup_wsm_komp(Vystup_wsm_kompTemplate):
         try:
             Utils.zapsat_info(f"Načítám data analýzy ID: {self.analyza_id}")
             
-            # Načtení dat analýzy z nové JSON struktury
+            # Načtení dat analýzy z JSON struktury
             analyza_data = anvil.server.call('nacti_analyzu', self.analyza_id)
             
             # Zobrazení výsledků
@@ -61,19 +59,15 @@ class Vystup_wsm_komp(Vystup_wsm_kompTemplate):
         Zobrazí kompletní analýzu včetně všech výpočtů.
         
         Args:
-            analyza_data: Slovník s kompletními daty analýzy
+            analyza_data: Slovník s daty analýzy v JSON formátu
         """
         # Zobrazení vstupních dat
         self._zobraz_vstupni_data(analyza_data)
         
         # Provedení výpočtů
         try:
-            # Využití sdílených funkcí z modulu vypocty, uzpůsobených pro novou strukturu
-            matice, typy_kriterii, varianty, kriteria = Vypocty.vytvor_hodnoty_matici(analyza_data)
-            
-            # Získání vah
-            kriteria_dict = analyza_data.get('kriteria', {})
-            vahy = [float(kriteria_dict[k]['vaha']) for k in kriteria]
+            # Využití sdílených funkcí z modulu Vypocty
+            matice, typy_kriterii, varianty, kriteria, vahy = Vypocty.priprav_data_z_json(analyza_data)
             
             # Normalizace matice
             norm_vysledky = Vypocty.normalizuj_matici_minmax(matice, typy_kriterii, varianty, kriteria)
@@ -91,10 +85,19 @@ class Vystup_wsm_komp(Vystup_wsm_kompTemplate):
                 varianty
             )
             
+            # Uložení dat pro další použití
+            self._data_pro_grafy = {
+                'norm_vysledky': norm_vysledky,
+                'vazene_matice': vazene_matice,
+                'vahy': vahy,
+                'wsm_vysledky': wsm_vysledky
+            }
+            
             # Zobrazení výsledků
-            self._zobraz_normalizaci(norm_vysledky, vazene_matice, vahy)
+            self._zobraz_normalizaci(norm_vysledky['normalizovana_matice'], vazene_matice, vahy, norm_vysledky['nazvy_kriterii'], norm_vysledky['nazvy_variant'])
             self._zobraz_vysledky(wsm_vysledky)
-            self._zobraz_citlivostni_analyzu(norm_vysledky, vahy)
+            self._zobraz_citlivostni_analyzu(norm_vysledky['normalizovana_matice'], vahy, norm_vysledky['nazvy_variant'], norm_vysledky['nazvy_kriterii'])
+            
         except Exception as e:
             Utils.zapsat_chybu(f"Chyba při výpočtu WSM výsledků: {str(e)}")
             self.rich_text_normalizace.content = f"Chyba při výpočtu: {str(e)}"
@@ -151,32 +154,29 @@ class Vystup_wsm_komp(Vystup_wsm_kompTemplate):
             Utils.zapsat_chybu(f"Chyba při zobrazování vstupních dat: {str(e)}")
             self.rich_text_vstupni_data.content = f"Chyba při zobrazování vstupních dat: {str(e)}"
 
-    def _zobraz_normalizaci(self, norm_vysledky, vazene_matice, vahy):
+    def _zobraz_normalizaci(self, norm_matice, vazene_matice, vahy, kriteria, varianty):
         """
         Zobrazí normalizovanou matici a vážené hodnoty.
         
         Args:
-            norm_vysledky: Výsledky normalizace
+            norm_matice: 2D list normalizovaných hodnot
             vazene_matice: 2D list vážených hodnot
             vahy: List vah kritérií
+            kriteria: Seznam názvů kritérií
+            varianty: Seznam názvů variant
         """
         try:
-            # Uloží hodnoty pro použití v grafu skladby
-            self._posledni_normalizacni_vysledky = norm_vysledky
-            self._posledni_vazene_matice = vazene_matice
-            self._posledni_vahy = vahy
-            
             md = "### Normalizace hodnot metodou Min-Max\n\n"
             
             # Normalizační tabulka
             md += "#### Normalizovaná matice\n"
-            md += "| Varianta / Krit. | " + " | ".join(norm_vysledky['nazvy_kriterii']) + " |\n"
-            md += "|" + "-|"*(len(norm_vysledky['nazvy_kriterii'])+1) + "\n"
+            md += "| Varianta / Krit. | " + " | ".join(kriteria) + " |\n"
+            md += "|" + "-|"*(len(kriteria)+1) + "\n"
             
-            for i, var_name in enumerate(norm_vysledky['nazvy_variant']):
+            for i, var_name in enumerate(varianty):
                 md += f"| {var_name} |"
-                for j in range(len(norm_vysledky['nazvy_kriterii'])):
-                    md += f" {norm_vysledky['normalizovana_matice'][i][j]:.3f} |"
+                for j in range(len(kriteria)):
+                    md += f" {norm_matice[i][j]:.3f} |"
                 md += "\n"
 
             # Vysvětlení normalizace
@@ -200,19 +200,19 @@ Kde:
             
             # Tabulka vah
             md += "\n#### Váhy kritérií\n"
-            md += "| Kritérium | " + " | ".join(norm_vysledky['nazvy_kriterii']) + " |\n"
-            md += "|" + "-|"*(len(norm_vysledky['nazvy_kriterii'])+1) + "\n"
+            md += "| Kritérium | " + " | ".join(kriteria) + " |\n"
+            md += "|" + "-|"*(len(kriteria)+1) + "\n"
             md += "| Váha | " + " | ".join([f"{v:.3f}" for v in vahy]) + " |\n"
             
             # Tabulka vážených hodnot
             md += "\n#### Vážené hodnoty (normalizované hodnoty × váhy)\n"
-            md += "| Varianta / Krit. | " + " | ".join(norm_vysledky['nazvy_kriterii']) + " | Součet |\n"
-            md += "|" + "-|"*(len(norm_vysledky['nazvy_kriterii'])+2) + "\n"
+            md += "| Varianta / Krit. | " + " | ".join(kriteria) + " | Součet |\n"
+            md += "|" + "-|"*(len(kriteria)+2) + "\n"
             
-            for i, var_name in enumerate(norm_vysledky['nazvy_variant']):
+            for i, var_name in enumerate(varianty):
                 md += f"| {var_name} |"
                 sum_val = 0
-                for j in range(len(norm_vysledky['nazvy_kriterii'])):
+                for j in range(len(kriteria)):
                     val = vazene_matice[i][j]
                     sum_val += val
                     md += f" {val:.3f} |"
@@ -282,24 +282,26 @@ WSM, také známý jako Simple Additive Weighting (SAW), je jedna z nejjednoduš
 - Předpokládá lineární užitek
 - Není vhodná pro silně konfliktní kritéria
 - Méně robustní vůči extrémním hodnotám než některé pokročilejší metody
-
-**Kdy použít WSM:**
-- Pro rychlé a přehledné rozhodnutí
-- Když jsou kritéria vzájemně nezávislá
-- Pro situace s jednoduchou strukturou preferencí
 """
             self.rich_text_vysledek.content = md
 
-            # Přidání základního grafu skóre
-            self.plot_wsm_vysledek.figure = self._vytvor_graf_vysledku(wsm_vysledky)
+            # Přidání základního grafu skóre s využitím sdíleného modulu vizualizace
+            self.plot_wsm_vysledek.figure = Vizualizace.vytvor_sloupovy_graf_vysledku(
+                wsm_vysledky['results'], 
+                wsm_vysledky['nejlepsi_varianta'], 
+                wsm_vysledky['nejhorsi_varianta'], 
+                "WSM"
+            )
             self.plot_wsm_vysledek.visible = True
 
             # Přidání grafu skladby skóre 
             if hasattr(self, 'plot_wsm_skladba'):
-                self.plot_wsm_skladba.figure = self._vytvor_graf_skladby_skore(
-                    self._posledni_normalizacni_vysledky, 
-                    self._posledni_vazene_matice, 
-                    self._posledni_vahy)
+                data = self._data_pro_grafy
+                self.plot_wsm_skladba.figure = Vizualizace.vytvor_skladany_sloupovy_graf(
+                    data['norm_vysledky']['nazvy_variant'],
+                    data['norm_vysledky']['nazvy_kriterii'],
+                    data['vazene_matice']
+                )
                 self.plot_wsm_skladba.visible = True
             
         except Exception as e:
@@ -307,13 +309,15 @@ WSM, také známý jako Simple Additive Weighting (SAW), je jedna z nejjednoduš
             self.rich_text_vysledek.content = f"Chyba při zobrazování výsledků: {str(e)}"
             self.plot_wsm_vysledek.visible = False
 
-    def _zobraz_citlivostni_analyzu(self, norm_vysledky, vahy):
+    def _zobraz_citlivostni_analyzu(self, norm_matice, vahy, varianty, kriteria):
         """
         Zobrazí analýzu citlivosti včetně textu a grafů.
         
         Args:
-            norm_vysledky: Výsledky normalizace matice
+            norm_matice: 2D list normalizovaných hodnot
             vahy: Seznam vah kritérií
+            varianty: Seznam názvů variant
+            kriteria: Seznam názvů kritérií
         """
         try:
             # Kontrola, zda existují potřebné komponenty
@@ -338,23 +342,23 @@ Ostatní váhy jsou vždy proporcionálně upraveny, aby součet všech vah zůs
 """
             self.rich_text_citlivost.content = citlivost_md
             
-            # Výpočet analýzy citlivosti pro první kritérium
+            # Výpočet analýzy citlivosti pro první kritérium s využitím sdílené funkce
             analyza_citlivosti = Vypocty.vypocitej_analyzu_citlivosti(
-                norm_vysledky['normalizovana_matice'], 
+                norm_matice, 
                 vahy, 
-                norm_vysledky['nazvy_variant'], 
-                norm_vysledky['nazvy_kriterii']
+                varianty, 
+                kriteria
             )
             
-            # Zobrazení grafů
+            # Zobrazení grafů s využitím sdílených funkcí vizualizace
             if hasattr(self, 'plot_citlivost_skore'):
-                self.plot_citlivost_skore.figure = self._vytvor_graf_citlivosti_skore(
-                    analyza_citlivosti, norm_vysledky['nazvy_variant'])
+                self.plot_citlivost_skore.figure = Vizualizace.vytvor_graf_citlivosti_skore(
+                    analyza_citlivosti, varianty)
                 self.plot_citlivost_skore.visible = True
             
             if hasattr(self, 'plot_citlivost_poradi'):
-                self.plot_citlivost_poradi.figure = self._vytvor_graf_citlivosti_poradi(
-                    analyza_citlivosti, norm_vysledky['nazvy_variant'])
+                self.plot_citlivost_poradi.figure = Vizualizace.vytvor_graf_citlivosti_poradi(
+                    analyza_citlivosti, varianty)
                 self.plot_citlivost_poradi.visible = True
             
             Utils.zapsat_info("Citlivostní analýza úspěšně zobrazena")
@@ -367,277 +371,3 @@ Ostatní váhy jsou vždy proporcionálně upraveny, aby součet všech vah zůs
                 self.plot_citlivost_skore.visible = False
             if hasattr(self, 'plot_citlivost_poradi'):
                 self.plot_citlivost_poradi.visible = False
-
-    def _vytvor_graf_vysledku(self, wsm_vysledky):
-        """
-        Vytvoří sloupcový graf výsledků pomocí Plotly.
-        
-        Args:
-            wsm_vysledky: Slovník s výsledky WSM analýzy
-        
-        Returns:
-            dict: Plotly figure configuration
-        """
-        try:
-            # Příprava dat pro graf
-            varianty = []
-            skore = []
-            colors = []  # Barvy pro sloupce
-            
-            # Seřazení dat podle skóre (sestupně)
-            for varianta, _, hodnota in wsm_vysledky['results']:
-                varianty.append(varianta)
-                skore.append(hodnota)
-                # Nejlepší varianta bude mít zelenou, nejhorší červenou
-                if varianta == wsm_vysledky['nejlepsi_varianta']:
-                    colors.append('#2ecc71')  # zelená
-                elif varianta == wsm_vysledky['nejhorsi_varianta']:
-                    colors.append('#e74c3c')  # červená
-                else:
-                    colors.append('#3498db')  # modrá
-          
-            # Vytvoření grafu
-            fig = {
-                'data': [{
-                    'type': 'bar',
-                    'x': varianty,
-                    'y': skore,
-                    'marker': {
-                        'color': colors
-                    },
-                    'text': [f'{s:.3f}' for s in skore],  # Zobrazení hodnot nad sloupci
-                    'textposition': 'auto',
-                }],
-                'layout': {
-                    'title': 'Celkové skóre variant (WSM)',
-                    'xaxis': {
-                        'title': 'Varianty',
-                        'tickangle': -45 if len(varianty) > 4 else 0  # Natočení popisků pro lepší čitelnost
-                    },
-                    'yaxis': {
-                        'title': 'Skóre',
-                        'range': [0, max(skore) * 1.1]  # Trochu místa nad sloupci pro hodnoty
-                    },
-                    'showlegend': False,
-                    'margin': {'t': 50, 'b': 100}  # Větší okraje pro popisky
-                }
-            }
-            
-            return fig
-        except Exception as e:
-            Utils.zapsat_chybu(f"Chyba při vytváření grafu: {str(e)}")
-            # Vrátíme prázdný graf
-            return {
-                'data': [],
-                'layout': {
-                    'title': 'Chyba při vytváření grafu'
-                }
-            }
-
-    def _vytvor_graf_skladby_skore(self, norm_vysledky, vazene_matice, vahy):
-        """
-        Vytvoří skládaný sloupcový graf zobrazující příspěvek jednotlivých kritérií k celkovému skóre.
-        
-        Args:
-            norm_vysledky: Výsledky normalizace
-            vazene_matice: 2D list vážených hodnot
-            vahy: List vah kritérií
-        
-        Returns:
-            dict: Plotly figure configuration
-        """
-        try:
-            varianty = norm_vysledky['nazvy_variant']
-            kriteria = norm_vysledky['nazvy_kriterii']
-            
-            # Vytvoření datových sérií pro každé kritérium
-            data = []
-            
-            # Pro každé kritérium vytvoříme jednu sérii dat
-            for j, kriterium in enumerate(kriteria):
-                hodnoty_kriteria = [vazene_matice[i][j] for i in range(len(varianty))]
-                
-                data.append({
-                    'type': 'bar',
-                    'name': kriterium,
-                    'x': varianty,
-                    'y': hodnoty_kriteria,
-                    'text': [f'{h:.3f}' for h in hodnoty_kriteria],
-                    'textposition': 'inside',
-                })
-                
-            # Vytvoření grafu
-            fig = {
-                'data': data,
-                'layout': {
-                    'title': 'Příspěvek jednotlivých kritérií k celkovému skóre',
-                    'barmode': 'stack',  # Skládaný sloupcový graf
-                    'xaxis': {
-                        'title': 'Varianty',
-                        'tickangle': -45 if len(varianty) > 4 else 0
-                    },
-                    'yaxis': {
-                        'title': 'Skóre',
-                    },
-                    'showlegend': True,
-                    'legend': {
-                        'title': 'Kritéria',
-                        'orientation': 'h',  # Horizontální legenda
-                        'y': -0.2,  # Umístění pod grafem
-                        'x': 0.5,
-                        'xanchor': 'center'
-                    },
-                    'margin': {'t': 50, 'b': 150}  # Větší spodní okraj pro legendu
-                }
-            }
-            
-            return fig
-        except Exception as e:
-            Utils.zapsat_chybu(f"Chyba při vytváření grafu složení skóre: {str(e)}")
-            # Vrátíme prázdný graf
-            return {
-                'data': [],
-                'layout': {
-                    'title': 'Chyba při vytváření grafu složení skóre'
-                }
-            }
-
-    def _vytvor_graf_citlivosti_skore(self, analyza_citlivosti, varianty):
-        """
-        Vytvoří graf analýzy citlivosti pro celkové skóre.
-        
-        Args:
-            analyza_citlivosti: Výsledky analýzy citlivosti
-            varianty: Seznam názvů variant
-        
-        Returns:
-            dict: Plotly figure configuration
-        """
-        try:
-            vahy_rozsah = analyza_citlivosti['vahy_rozsah']
-            citlivost_skore = analyza_citlivosti['citlivost_skore']
-            zvolene_kriterium = analyza_citlivosti['zvolene_kriterium']
-            
-            # Vytvoření datových sérií pro každou variantu
-            data = []
-            
-            for i, varianta in enumerate(varianty):
-                # Pro každou variantu vytvoříme jednu datovou sérii
-                data.append({
-                    'type': 'scatter',
-                    'mode': 'lines+markers',
-                    'name': varianta,
-                    'x': vahy_rozsah,
-                    'y': [citlivost_skore[j][i] for j in range(len(vahy_rozsah))],
-                    'marker': {
-                        'size': 8
-                    }
-                })
-                
-            # Vytvoření grafu
-            fig = {
-                'data': data,
-                'layout': {
-                    'title': f'Analýza citlivosti - vliv změny váhy kritéria "{zvolene_kriterium}" na celkové skóre',
-                    'xaxis': {
-                        'title': f'Váha kritéria {zvolene_kriterium}',
-                        'tickformat': '.1f'
-                    },
-                    'yaxis': {
-                        'title': 'Celkové skóre WSM',
-                    },
-                    'showlegend': True,
-                    'legend': {
-                        'title': 'Varianty',
-                        'orientation': 'v',
-                    },
-                    'grid': {
-                        'rows': 1, 
-                        'columns': 1
-                    },
-                    'margin': {'t': 50, 'b': 80}
-                }
-            }
-            
-            return fig
-        except Exception as e:
-            Utils.zapsat_chybu(f"Chyba při vytváření grafu citlivosti skóre: {str(e)}")
-            # Vrátíme prázdný graf
-            return {
-                'data': [],
-                'layout': {
-                    'title': 'Chyba při vytváření grafu citlivosti skóre'
-                }
-            }
-    
-    def _vytvor_graf_citlivosti_poradi(self, analyza_citlivosti, varianty):
-        """
-        Vytvoří graf analýzy citlivosti pro pořadí variant.
-        
-        Args:
-            analyza_citlivosti: Výsledky analýzy citlivosti
-            varianty: Seznam názvů variant
-        
-        Returns:
-            dict: Plotly figure configuration
-        """
-        try:
-            vahy_rozsah = analyza_citlivosti['vahy_rozsah']
-            citlivost_poradi = analyza_citlivosti['citlivost_poradi']
-            zvolene_kriterium = analyza_citlivosti['zvolene_kriterium']
-            
-            # Vytvoření datových sérií pro každou variantu
-            data = []
-            
-            for i, varianta in enumerate(varianty):
-                # Pro každou variantu vytvoříme jednu datovou sérii
-                data.append({
-                    'type': 'scatter',
-                    'mode': 'lines+markers',
-                    'name': varianta,
-                    'x': vahy_rozsah,
-                    'y': [citlivost_poradi[j][i] for j in range(len(vahy_rozsah))],
-                    'marker': {
-                        'size': 8
-                    }
-                })
-                
-            # Vytvoření grafu
-            fig = {
-                'data': data,
-                'layout': {
-                    'title': f'Analýza citlivosti - vliv změny váhy kritéria "{zvolene_kriterium}" na pořadí variant',
-                    'xaxis': {
-                        'title': f'Váha kritéria {zvolene_kriterium}',
-                        'tickformat': '.1f'
-                    },
-                    'yaxis': {
-                        'title': 'Pořadí',
-                        'tickmode': 'linear',
-                        'tick0': 1,
-                        'dtick': 1,
-                        'autorange': 'reversed'  # Obrácené pořadí (1 je nahoře)
-                    },
-                    'showlegend': True,
-                    'legend': {
-                        'title': 'Varianty',
-                        'orientation': 'v',
-                    },
-                    'grid': {
-                        'rows': 1, 
-                        'columns': 1
-                    },
-                    'margin': {'t': 50, 'b': 80}
-                }
-            }
-            
-            return fig
-        except Exception as e:
-            Utils.zapsat_chybu(f"Chyba při vytváření grafu citlivosti pořadí: {str(e)}")
-            # Vrátíme prázdný graf
-            return {
-                'data': [],
-                'layout': {
-                    'title': 'Chyba při vytváření grafu citlivosti pořadí'
-                }
-            }

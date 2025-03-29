@@ -1,4 +1,4 @@
-# client_code/Vypocty.py - nový modul pro sdílené výpočty
+# client_code/Vypocty.py - modul pro sdílené výpočty
 
 import anvil.server
 import anvil.users
@@ -127,10 +127,47 @@ def wsm_vypocet(norm_matice, vahy, varianty):
         'rozdil_skore': results[0][2] - results[-1][2]
     }
 
-# Zde by následovaly další specifické funkce pro další metody
-# def wpm_vypocet(...):
-# def topsis_vypocet(...):
-# atd.
+def priprav_data_z_json(analyza_data):
+    """
+    Připraví data z JSON struktury pro výpočty.
+    
+    Args:
+        analyza_data: Slovník s daty analýzy v novém formátu
+        
+    Returns:
+        tuple: (matice, typy_kriterii, varianty, kriteria, vahy)
+    """
+    try:
+        # Získání seznamu kritérií a jejich typů
+        kriteria_dict = analyza_data.get('kriteria', {})
+        kriteria = list(kriteria_dict.keys())
+        typy_kriterii = [kriteria_dict[k]['typ'] for k in kriteria]
+        vahy = [float(kriteria_dict[k]['vaha']) for k in kriteria]
+        
+        # Získání seznamu variant
+        varianty_dict = analyza_data.get('varianty', {})
+        varianty = list(varianty_dict.keys())
+        
+        # Vytvoření matice hodnot
+        matice = []
+        for var_nazev in varianty:
+            var_data = varianty_dict[var_nazev]
+            radek = []
+            for krit_nazev in kriteria:
+                # Získáme hodnotu pro kritérium, výchozí je 0 pokud chybí
+                hodnota = 0
+                if krit_nazev in var_data:
+                    try:
+                        hodnota = float(var_data[krit_nazev])
+                    except (ValueError, TypeError):
+                        hodnota = 0
+                radek.append(hodnota)
+            matice.append(radek)
+            
+        return matice, typy_kriterii, varianty, kriteria, vahy
+        
+    except Exception as e:
+        raise ValueError(f"Chyba při přípravě dat pro výpočet: {str(e)}")
 
 def vypocitej_analyzu_citlivosti(norm_matice, vahy, varianty, kriteria, vyber_kriteria=0, pocet_kroku=9):
     """
@@ -200,3 +237,129 @@ def vypocitej_analyzu_citlivosti(norm_matice, vahy, varianty, kriteria, vyber_kr
         }
     except Exception as e:
         raise ValueError(f"Chyba při výpočtu analýzy citlivosti: {str(e)}")
+
+def topsis_vypocet(norm_matice, vahy, varianty, kriteria):
+    """
+    Vypočítá výsledky metodou TOPSIS (Technique for Order of Preference by Similarity to Ideal Solution).
+    
+    Args:
+        norm_matice: 2D list normalizovaných hodnot
+        vahy: List vah kritérií
+        varianty: List názvů variant
+        kriteria: List názvů kritérií
+    
+    Returns:
+        dict: Výsledky analýzy metodou TOPSIS
+    """
+    try:
+        # Výpočet vážené normalizované matice
+        vazena_matice = []
+        for i in range(len(varianty)):
+            radek = []
+            for j in range(len(kriteria)):
+                radek.append(norm_matice[i][j] * vahy[j])
+            vazena_matice.append(radek)
+        
+        # Výpočet ideálního a anti-ideálního řešení
+        ideal = []
+        anti_ideal = []
+        for j in range(len(kriteria)):
+            sloupec = [vazena_matice[i][j] for i in range(len(varianty))]
+            ideal.append(max(sloupec))
+            anti_ideal.append(min(sloupec))
+        
+        # Výpočet vzdáleností od ideálního a anti-ideálního řešení
+        dist_ideal = []
+        dist_anti_ideal = []
+        for i in range(len(varianty)):
+            sum_ideal = 0
+            sum_anti_ideal = 0
+            for j in range(len(kriteria)):
+                sum_ideal += (vazena_matice[i][j] - ideal[j]) ** 2
+                sum_anti_ideal += (vazena_matice[i][j] - anti_ideal[j]) ** 2
+            dist_ideal.append(sum_ideal ** 0.5)
+            dist_anti_ideal.append(sum_anti_ideal ** 0.5)
+        
+        # Výpočet relativní blízkosti k ideálnímu řešení
+        blízkost = []
+        for i in range(len(varianty)):
+            if dist_ideal[i] + dist_anti_ideal[i] == 0:
+                blízkost.append(0)
+            else:
+                blízkost.append(dist_anti_ideal[i] / (dist_ideal[i] + dist_anti_ideal[i]))
+        
+        # Seřazení variant podle blízkosti (sestupně)
+        skore = [(varianty[i], blízkost[i]) for i in range(len(varianty))]
+        serazene = sorted(skore, key=lambda x: x[1], reverse=True)
+        
+        # Vytvoření seznamu výsledků s pořadím
+        results = []
+        for poradi, (varianta, hodnota) in enumerate(serazene, 1):
+            results.append((varianta, poradi, hodnota))
+        
+        return {
+            'results': results,
+            'nejlepsi_varianta': results[0][0],
+            'nejlepsi_skore': results[0][2],
+            'nejhorsi_varianta': results[-1][0],
+            'nejhorsi_skore': results[-1][2],
+            'ideal': ideal,
+            'anti_ideal': anti_ideal,
+            'vazena_matice': vazena_matice
+        }
+    except Exception as e:
+        raise ValueError(f"Chyba při výpočtu TOPSIS: {str(e)}")
+
+def wpm_vypocet(matice, vahy, typy_kriterii, varianty, kriteria):
+    """
+    Vypočítá výsledky metodou WPM (Weighted Product Model).
+    
+    Args:
+        matice: 2D list původních hodnot
+        vahy: List vah kritérií
+        typy_kriterii: List typů kritérií ("max" nebo "min")
+        varianty: List názvů variant
+        kriteria: List názvů kritérií
+    
+    Returns:
+        dict: Výsledky analýzy metodou WPM
+    """
+    try:
+        # Pro WPM používáme přímo původní hodnoty, nikoliv normalizované
+        # Inicializace výsledných hodnot na 1 pro násobení
+        skore = [1.0] * len(varianty)
+        
+        for i in range(len(varianty)):
+            for j in range(len(kriteria)):
+                hodnota = matice[i][j]
+                
+                # Kontrola, že hodnoty nejsou nulové nebo záporné
+                if hodnota <= 0:
+                    hodnota = 0.001  # Malá kladná hodnota
+                
+                # Pro minimalizační kritéria používáme 1/hodnota
+                if typy_kriterii[j].lower() in ("min", "cost"):
+                    hodnota = 1 / hodnota
+                
+                # Umocníme hodnotu na váhu a vynásobíme dosavadní skóre
+                skore[i] *= hodnota ** vahy[j]
+        
+        # Seřazení variant podle skóre (sestupně)
+        skore_varianty = [(varianty[i], skore[i]) for i in range(len(varianty))]
+        serazene = sorted(skore_varianty, key=lambda x: x[1], reverse=True)
+        
+        # Vytvoření seznamu výsledků s pořadím
+        results = []
+        for poradi, (varianta, hodnota) in enumerate(serazene, 1):
+            results.append((varianta, poradi, hodnota))
+        
+        return {
+            'results': results,
+            'nejlepsi_varianta': results[0][0],
+            'nejlepsi_skore': results[0][2],
+            'nejhorsi_varianta': results[-1][0],
+            'nejhorsi_skore': results[-1][2],
+            'rozdil_skore': results[0][2] - results[-1][2] if len(results) > 1 else 0
+        }
+    except Exception as e:
+        raise ValueError(f"Chyba při výpočtu WPM: {str(e)}")

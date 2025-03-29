@@ -86,16 +86,42 @@ def validuj_data_analyzy(data: Dict) -> None:
         raise ValueError(f"Chybí povinné klíče v datech analýzy: {', '.join(missing_keys)}")
         
     # Validace kritérií
-    validuj_kriteria(data.get("kriteria", []))
+    kriteria = data.get("kriteria", [])
+    if not kriteria:
+        raise ValueError("Analýza musí obsahovat alespoň jedno kritérium.")
+        
+    validuj_kriteria(kriteria)
     
     # Validace variant
-    if not data.get("varianty", []):
+    varianty = data.get("varianty", [])
+    if not varianty:
         raise ValueError("Analýza musí obsahovat alespoň jednu variantu.")
     
-    # Validace hodnot
+    # Validace hodnot - nový formát matice
     hodnoty = data.get("hodnoty", {})
-    if not isinstance(hodnoty, dict) or "matice_hodnoty" not in hodnoty:
-        raise ValueError("Data analýzy musí obsahovat klíč 'hodnoty' s podklíčem 'matice_hodnoty'.")
+    if not isinstance(hodnoty, dict):
+        raise ValueError("Data analýzy musí obsahovat klíč 'hodnoty' jako slovník.")
+        
+    if "matice" not in hodnoty:
+        raise ValueError("Data analýzy musí obsahovat klíč 'hodnoty' s podklíčem 'matice'.")
+        
+    # Kontrola struktury matice (nový kompaktní formát)
+    matice = hodnoty.get("matice", {})
+    if not isinstance(matice, dict):
+        raise ValueError("Matice hodnot musí být slovník s ID variant jako klíči.")
+    
+    # Kontrola, zda matice obsahuje data pro všechny varianty
+    var_ids = [v.get('nazev_varianty') for v in varianty]
+    missing_vars = [var_id for var_id in var_ids if var_id not in matice]
+    
+    # Kontrola, zda některé varianty nemají chybějící data (volitelné)
+    if missing_vars and len(matice) > 0:  # Pokud máme nějaké hodnoty, ale některé varianty chybí
+        zapsat_info(f"Upozornění: Některé varianty nemají hodnoty: {', '.join(missing_vars)}")
+    
+    # Kontrola, zda matice obsahuje platné hodnoty
+    for var_id, krit_hodnoty in matice.items():
+        if not isinstance(krit_hodnoty, dict):
+            raise ValueError(f"Hodnoty pro variantu '{var_id}' musí být slovník.")
 
 def validuj_kriteria(kriteria: List[Dict]) -> None:
     """

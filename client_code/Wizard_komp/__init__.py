@@ -2,6 +2,7 @@
 # Form: Wizard_komp
 # Formulář pro vytváření a úpravu analýz.
 # Ukládá data do lokální cache a na server až v posledním kroku.
+# Používá kompaktní formát dat s vnořenými objekty.
 # -------------------------------------------------------
 from ._anvil_designer import Wizard_kompTemplate
 from anvil import *
@@ -35,9 +36,9 @@ class Wizard_komp(Wizard_kompTemplate):
     self.repeating_panel_varianty.set_event_handler('x-refresh', self.nacti_varianty)
 
     if self.mode == Konstanty.STAV_ANALYZY['UPRAVA']: 
-        self.nacti_aktivni_analyzu()
+        self.load_existing_analyza()
 
-  def nacti_aktivni_analyzu(self):
+  def load_existing_analyza(self):
     """Načte existující analýzu pro editaci."""
     try:
         # Pokud nemáme ID analýzy ze správce stavu, zkusíme ho získat ze serveru
@@ -57,7 +58,7 @@ class Wizard_komp(Wizard_kompTemplate):
             self.spravce.uloz_zakladni_data_analyzy(data.get("nazev", ""), data.get("popis", ""))
             self.spravce.uloz_kriteria(data.get("kriteria", []))
             self.spravce.uloz_varianty(data.get("varianty", []))
-            self.spravce.uloz_hodnoty(data.get("hodnoty", {"matice_hodnoty": {}}))
+            self.spravce.uloz_hodnoty(data.get("hodnoty", {"matice": {}}))
             
             # Nastavení polí formuláře z dat ve správci stavu
             self.text_box_nazev.text = self.spravce.ziskej_nazev()
@@ -265,20 +266,25 @@ class Wizard_komp(Wizard_kompTemplate):
     
     matice_data = []
     for varianta in varianty:
+        var_id = varianta['nazev_varianty']
         kriteria_pro_variantu = []
+        
+        # Získání hodnot v novém formátu
+        var_hodnoty = hodnoty.get('matice', {}).get(var_id, {})
+        
         for k in kriteria:
-            key = f"{varianta['nazev_varianty']}_{k['nazev_kriteria']}"
-            hodnota = hodnoty['matice_hodnoty'].get(key, '')
+            krit_id = k['nazev_kriteria']
+            hodnota = var_hodnoty.get(krit_id, '')
             
             kriteria_pro_variantu.append({
-                'nazev_kriteria': k['nazev_kriteria'],
-                'id_kriteria': k['nazev_kriteria'],
+                'nazev_kriteria': krit_id,
+                'id_kriteria': krit_id,
                 'hodnota': hodnota
             })
 
         matice_data.append({
-            'nazev_varianty': varianta['nazev_varianty'],
-            'id_varianty': varianta['nazev_varianty'],
+            'nazev_varianty': var_id,
+            'id_varianty': var_id,
             'kriteria': kriteria_pro_variantu
         })
 
@@ -300,7 +306,12 @@ class Wizard_komp(Wizard_kompTemplate):
         Utils.zapsat_info("Připravuji uložení analýzy")
         Utils.zapsat_info(f"Počet kritérií: {len(kriteria)}")
         Utils.zapsat_info(f"Počet variant: {len(varianty)}")
-        Utils.zapsat_info(f"Počet hodnot: {len(hodnoty.get('matice_hodnoty', {}))}")
+        
+        # Získáme počet hodnot v matici (nový kompaktní formát)
+        pocet_hodnot = 0
+        for var_id, var_hodnoty in hodnoty.get('matice', {}).items():
+            pocet_hodnot += len(var_hodnoty)
+        Utils.zapsat_info(f"Počet hodnot: {pocet_hodnot}")
         
         # Příprava dat pro uložení na server
         data_json = {
@@ -347,12 +358,16 @@ class Wizard_komp(Wizard_kompTemplate):
 
   def validuj_matici(self):
     """Validuje a ukládá hodnoty matice do správce stavu."""
-    matrix_values = {'matice_hodnoty': {}}
+    matrix_values = {'matice': {}}
     errors = []
     
     for var_row in self.Matice_var.get_components():
+        var_id = var_row.item['id_varianty']
+        matrix_values['matice'][var_id] = {}
+        
         for krit_row in var_row.Matice_krit.get_components():
             hodnota_text = krit_row.text_box_matice_hodnota.text
+            krit_id = krit_row.item['id_kriteria']
             
             if not hodnota_text:
                 errors.append("Všechny hodnoty musí být vyplněny")
@@ -363,8 +378,8 @@ class Wizard_komp(Wizard_kompTemplate):
                 hodnota = float(hodnota_text)
                 krit_row.text_box_matice_hodnota.text = str(hodnota)
                 
-                key = f"{var_row.item['id_varianty']}_{krit_row.item['id_kriteria']}"
-                matrix_values['matice_hodnoty'][key] = hodnota
+                # Ukládání v novém formátu
+                matrix_values['matice'][var_id][krit_id] = hodnota
                 
             except ValueError:
                 errors.append(
@@ -379,7 +394,7 @@ class Wizard_komp(Wizard_kompTemplate):
         self.label_chyba_4.visible = True
         return False
 
-    # Ukládáme validované hodnoty matice pouze do správce stavu
+    # Ukládáme validované hodnoty matice do správce stavu
     self.spravce.uloz_hodnoty(matrix_values)
     self.label_chyba_4.visible = False
     return True

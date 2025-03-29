@@ -16,10 +16,10 @@ class Dashboard_uziv_komp(Dashboard_uziv_kompTemplate):
         self.spravce = Spravce_stavu.Spravce_stavu()
         
         # Nastavení handleru pro aktualizaci seznamu analýz
-        self.repeating_panel_dashboard.set_event_handler('x-refresh', self.load_analyzy)
+        self.repeating_panel_dashboard.set_event_handler('x-refresh', self.nahraj_analyzy)
         
         # Načtení analýz při startu
-        self.load_analyzy()
+        self.nahraj_analyzy()
     
     def form_show(self, **event_args):
         """
@@ -27,9 +27,9 @@ class Dashboard_uziv_komp(Dashboard_uziv_kompTemplate):
         """
         # Ujistíme se, že máme aktuálního uživatele
         self.spravce.nacti_uzivatele()
-        self.load_analyzy()
+        self.nahraj_analyzy()
     
-    def load_analyzy(self, **event_args):
+    def nahraj_analyzy(self, **event_args):
         """
         Načte seznam analýz ze serveru a zobrazí je v UI.
         """
@@ -56,8 +56,7 @@ class Dashboard_uziv_komp(Dashboard_uziv_kompTemplate):
                     'nazev': a['nazev'],
                     'popis': a.get('popis', ''),
                     'datum_vytvoreni': a['datum_vytvoreni'].strftime("%d.%m.%Y") if a['datum_vytvoreni'] else "",
-                    'datum_upravy': a['datum_upravy'].strftime("%d.%m.%Y") if a['datum_upravy'] else "",
-                    'zvolena_metoda': "SAW"  # Výchozí hodnota pro metodu
+                    'datum_upravy': a['datum_upravy'].strftime("%d.%m.%Y") if a['datum_upravy'] else ""
                 } for a in analyzy
             ]
             
@@ -75,4 +74,4 @@ class Dashboard_uziv_komp(Dashboard_uziv_kompTemplate):
         self.spravce.vycisti_data_analyzy()
         
         # Přejdeme na stránku pro zadání dat analýzy
-        Navigace.go('saw_vstup')
+        Navigace.go('pridat_analyzu')

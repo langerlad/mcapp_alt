@@ -15,7 +15,6 @@ from anvil import *
 
 from . import Konstanty, Spravce_stavu, Utils
 from .Administrace_komp import Administrace_komp
-from .Analyza_ahp_komp import Analyza_ahp_komp
 from .Wizard_komp import Wizard_komp
 from .Info_komp import Info_komp
 from .Nastaveni_komp import Nastaveni_komp
@@ -88,12 +87,6 @@ KONFIGURACE_NAVIGACE = {
         'vyzaduje_prihlaseni': True,
         'oznaceni_nav': 'ucet',
         'kontrola_rozpracovane': True
-    },
-    'ahp': {
-        'komponenta': Analyza_ahp_komp,
-        'vyzaduje_prihlaseni': True,
-        'oznaceni_nav': None,
-        'kontrola_rozpracovane': False
     },
     'saw_vstup': {
         'komponenta': Wizard_komp,
@@ -256,28 +249,22 @@ def over_a_smaz_rozpracovanou(cilova_stranka):
             if components and isinstance(components[0], Wizard_komp):
                 wizard = components[0]
 
-                # Kontrola nové analýzy
-                if wizard.mode == Konstanty.STAV_ANALYZY['NOVY'] and wizard.analyza_id:
+                # Kontrola nové analýzy - nyní jen kontrolujeme, zda má správce neukládaná data
+                if wizard.mode == Konstanty.STAV_ANALYZY['NOVY'] and spravce.ma_neulozena_data():
                     if Utils.zobraz_potvrzovaci_dialog(Konstanty.ZPRAVY_CHYB['POTVRZENI_ZRUSENI_NOVE']):
-                        try:
-                            anvil.server.call('smaz_analyzu', wizard.analyza_id)
-                            spravce.vycisti_data_analyzy()  # Vyčištění správce stavu
-                        except Exception as e:
-                            Utils.zapsat_chybu(f"Nepodařilo se smazat analýzu {wizard.analyza_id}: {str(e)}")
+                        # Stačí vyčistit data ve správci stavu
+                        spravce.vycisti_data_analyzy()
                         return True
                     return False
 
+                # Kontrola upravované analýzy
                 elif wizard.mode == Konstanty.STAV_ANALYZY['UPRAVA'] and wizard.mode != Konstanty.STAV_ANALYZY['ULOZENY']:
                     if Utils.zobraz_potvrzovaci_dialog(Konstanty.ZPRAVY_CHYB['POTVRZENI_ZRUSENI_UPRAVY']):
-                        spravce.vycisti_data_analyzy()  # Vyčištění správce stavu
+                        spravce.vycisti_data_analyzy()
                         return True
                     return False
         return True
 
     except Exception as e:
         Utils.zapsat_chybu(f"Chyba při kontrole rozpracované analýzy: {str(e)}")
-        return True
-
-    except Exception as e:
-        zapsat_chybu(f"Chyba při kontrole rozpracované analýzy: {str(e)}")
         return True

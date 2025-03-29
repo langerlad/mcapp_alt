@@ -10,7 +10,6 @@ class Spravce_stavu:
     """
     Třída pro centralizovanou správu stavu aplikace.
     Implementovaná jako singleton pro zajištění konzistence stavu napříč komponentami.
-    Upraveno pro novou JSON strukturu dat.
     """
     
     _instance = None
@@ -154,7 +153,7 @@ class Spravce_stavu:
             bool: True pokud existují neukládaná data, jinak False
         """
         # Máme data a máme buď dočasné ID nebo jsme v režimu úprav
-        return (bool(self._data_analyzy) and 
+        return (bool(self._data_analyzy["kriteria"] or self._data_analyzy["varianty"]) and 
                 (self.je_docasne_id() or self._rezim_upravy))
   
     def vycisti_data_analyzy(self):
@@ -339,23 +338,6 @@ class Spravce_stavu:
         """
         return self._data_analyzy.get("kriteria", {})
     
-    def ziskej_kriteria_jako_seznam(self):
-        """
-        Vrátí kritéria jako seznam slovníků pro kompatibilitu s původním UI.
-        
-        Returns:
-            list: Seznam kritérií
-        """
-        kriteria = self._data_analyzy.get("kriteria", {})
-        return [
-            {
-                "nazev_kriteria": nazev,
-                "typ": data["typ"],
-                "vaha": data["vaha"]
-            }
-            for nazev, data in kriteria.items()
-        ]
-    
     def ziskej_varianty(self):
         """
         Vrátí varianty analýzy.
@@ -365,93 +347,6 @@ class Spravce_stavu:
         """
         return self._data_analyzy.get("varianty", {})
     
-    def ziskej_varianty_jako_seznam(self):
-        """
-        Vrátí varianty jako seznam slovníků pro kompatibilitu s původním UI.
-        
-        Returns:
-            list: Seznam variant
-        """
-        varianty = self._data_analyzy.get("varianty", {})
-        return [
-            {
-                "nazev_varianty": nazev,
-                "popis_varianty": data.get("popis_varianty", "")
-            }
-            for nazev, data in varianty.items()
-        ]
-    
-    def ziskej_hodnoty_matice(self):
-        """
-        Vrátí hodnoty matice variant a kritérií.
-        
-        Returns:
-            dict: Slovník s hodnotami pro každou kombinaci varianty a kritéria
-        """
-        # Připravíme data pro matici v původním UI formátu
-        matice = {}
-        varianty = self._data_analyzy.get("varianty", {})
-        kriteria = self._data_analyzy.get("kriteria", {})
-        
-        for nazev_var, var_data in varianty.items():
-            for nazev_krit in kriteria.keys():
-                klic = f"{nazev_var}_{nazev_krit}"
-                hodnota = var_data.get(nazev_krit, "")
-                matice[klic] = hodnota
-        
-        return {"matice_hodnoty": matice}
-    
-    def ziskej_kompletni_data(self):
-        """
-        Vrátí kompletní data analýzy.
-        
-        Returns:
-            dict: Slovník s kompletními daty analýzy
-        """
-        return self._data_analyzy
-    
-    # === Metody pro načítání dat ze serveru ===
-    
-    def nacti_kompletni_analyzu_ze_serveru(self, analyza_id=None):
-        """
-        Načte kompletní data analýzy ze serveru a uloží je lokálně.
-        
-        Args:
-            analyza_id (str, optional): ID analýzy. Pokud není zadáno, použije se aktivní analýza.
-            
-        Returns:
-            bool: True pokud načtení proběhlo úspěšně, jinak False
-        """
-        if not analyza_id and not self._aktivni_analyza_id:
-            Utils.zapsat_chybu("Není zvolena žádná analýza pro načtení")
-            return False
-            
-        id_pro_nacteni = analyza_id or self._aktivni_analyza_id
-        
-        try:
-            data = anvil.server.call('nacti_analyzu', id_pro_nacteni)
-            
-            if data:
-                # Uložení základních dat
-                self._data_analyzy = {
-                    "nazev": data.get("nazev", ""),
-                    "popis_analyzy": data.get("popis_analyzy", ""),
-                    "kriteria": data.get("kriteria", {}),
-                    "varianty": data.get("varianty", {})
-                }
-                
-                self._aktivni_analyza_id = id_pro_nacteni
-                
-                Utils.zapsat_info(f"Analýza úspěšně načtena: {id_pro_nacteni}")
-                return True
-            else:
-                Utils.zapsat_chybu(f"Server nevrátil žádná data pro analýzu: {id_pro_nacteni}")
-                return False
-                
-        except Exception as e:
-            Utils.zapsat_chybu(f"Chyba při načítání analýzy: {str(e)}")
-            return False
-            
     def uloz_analyzu_na_server(self):
         """
         Uloží kompletní analýzu na server.
@@ -466,8 +361,8 @@ class Spravce_stavu:
             if je_nova:
                 # Vytvoření nové analýzy
                 analyza_id = anvil.server.call('vytvor_analyzu', 
-                                              self._data_analyzy.get("nazev", ""), 
-                                              self._data_analyzy.get("popis_analyzy", ""))
+                                               self._data_analyzy.get("nazev", ""), 
+                                               self._data_analyzy.get("popis_analyzy", ""))
                 
                 if not analyza_id:
                     Utils.zapsat_chybu("Nepodařilo se vytvořit novou analýzu")

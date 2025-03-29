@@ -2,7 +2,6 @@
 # Form: Wizard_komp
 # Formulář pro vytváření a úpravu analýz.
 # Ukládá data do lokální cache a na server až v posledním kroku.
-# Upraveno pro novou JSON strukturu.
 # -------------------------------------------------------
 from ._anvil_designer import Wizard_kompTemplate
 from anvil import *
@@ -67,13 +66,16 @@ class Wizard_komp(Wizard_kompTemplate):
             # 3. Zpracování variant a jejich hodnot v novém formátu
             varianty = data.get("varianty", {})
             for nazev_var, var_data in varianty.items():
-                # Přidání varianty
-                popis_var = var_data.pop("popis_varianty", "")
+                # Získáme kopii dat varianty, abychom mohli bezpečně odebrat popis_varianty
+                var_data_copy = var_data.copy()
+                # Extrahujeme popis varianty
+                popis_var = var_data_copy.pop("popis_varianty", "")
+                # Přidáme variantu
                 self.spravce.pridej_variantu(nazev_var, popis_var)
                 
                 # Přidání hodnot pro kritéria
                 for nazev_krit, hodnota in var_data.items():
-                    if nazev_krit in kriteria:
+                    if nazev_krit != "popis_varianty" and nazev_krit in kriteria:
                         self.spravce.uloz_hodnotu_varianty(nazev_var, nazev_krit, hodnota)
             
             # Nastavení polí formuláře z dat ve správci stavu
@@ -171,8 +173,14 @@ class Wizard_komp(Wizard_kompTemplate):
 
   def nacti_kriteria(self, **event_args):
     """Načte kritéria ze správce stavu a zobrazí je v repeating panelu."""
-    # Načtení kritérií ze správce stavu jako seznam pro UI
-    kriteria = self.spravce.ziskej_kriteria_jako_seznam()
+    # Získáme kritéria ve správném formátu pro UI
+    kriteria = []
+    for nazev, data in self.spravce.ziskej_kriteria().items():
+        kriteria.append({
+            "nazev_kriteria": nazev,
+            "typ": data.get("typ", "max"),
+            "vaha": data.get("vaha", 0)
+        })
     
     self.repeating_panel_kriteria.items = kriteria
 
@@ -235,8 +243,13 @@ class Wizard_komp(Wizard_kompTemplate):
 
   def nacti_varianty(self, **event_args):
     """Načte varianty ze správce stavu a zobrazí je v repeating panelu."""
-    # Načtení variant ze správce stavu jako seznam pro UI
-    varianty = self.spravce.ziskej_varianty_jako_seznam()
+    # Získáme varianty ve správném formátu pro UI
+    varianty = []
+    for nazev, data in self.spravce.ziskej_varianty().items():
+        varianty.append({
+            "nazev_varianty": nazev,
+            "popis_varianty": data.get("popis_varianty", "")
+        })
     
     self.repeating_panel_varianty.items = varianty
 

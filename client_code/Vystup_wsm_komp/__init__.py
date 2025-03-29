@@ -13,6 +13,7 @@ class Vystup_wsm_komp(Vystup_wsm_kompTemplate):
     """
     Formulář pro zobrazení výsledků WSM analýzy (Weighted Sum Model).
     Vylepšená verze původního SAW formuláře s detailnějšími výpočty.
+    Optimalizováno pro novou JSON strukturu.
     """
     def __init__(self, analyza_id=None, **properties):
         self.init_components(**properties)
@@ -35,14 +36,8 @@ class Vystup_wsm_komp(Vystup_wsm_kompTemplate):
         try:
             Utils.zapsat_info(f"Načítám data analýzy ID: {self.analyza_id}")
             
-            # Jediné volání serveru - získání dat analýzy
-            analyza_data = anvil.server.call('nacti_kompletni_analyzu', self.analyza_id)
-            
-            # Uložení dat do správce stavu pro případné další použití
-            self.spravce.uloz_data_analyzy(analyza_data['analyza'])
-            self.spravce.uloz_kriteria(analyza_data['kriteria'])
-            self.spravce.uloz_varianty(analyza_data['varianty'])
-            self.spravce.uloz_hodnoty(analyza_data['hodnoty'])
+            # Načtení dat analýzy z nové JSON struktury
+            analyza_data = anvil.server.call('nacti_analyzu', self.analyza_id)
             
             # Zobrazení výsledků
             self._zobraz_kompletni_analyzu(analyza_data)
@@ -73,16 +68,17 @@ class Vystup_wsm_komp(Vystup_wsm_kompTemplate):
         
         # Provedení výpočtů
         try:
-            # Využití sdílených funkcí z modulu vypocty
+            # Využití sdílených funkcí z modulu vypocty, uzpůsobených pro novou strukturu
             matice, typy_kriterii, varianty, kriteria = Vypocty.vytvor_hodnoty_matici(analyza_data)
             
             # Získání vah
-            vahy = [float(k['vaha']) for k in analyza_data['kriteria']]
+            kriteria_dict = analyza_data.get('kriteria', {})
+            vahy = [float(kriteria_dict[k]['vaha']) for k in kriteria]
             
             # Normalizace matice
             norm_vysledky = Vypocty.normalizuj_matici_minmax(matice, typy_kriterii, varianty, kriteria)
             
-            # Výpočet vážených hodnot (nová verze)
+            # Výpočet vážených hodnot
             vazene_matice = Vypocty.vypocitej_vazene_hodnoty(
                 norm_vysledky['normalizovana_matice'], 
                 vahy
@@ -98,7 +94,7 @@ class Vystup_wsm_komp(Vystup_wsm_kompTemplate):
             # Zobrazení výsledků
             self._zobraz_normalizaci(norm_vysledky, vazene_matice, vahy)
             self._zobraz_vysledky(wsm_vysledky)
-            self._zobraz_citlivostni_analyzu()
+            self._zobraz_citlivostni_analyzu(norm_vysledky, vahy)
         except Exception as e:
             Utils.zapsat_chybu(f"Chyba při výpočtu WSM výsledků: {str(e)}")
             self.rich_text_normalizace.content = f"Chyba při výpočtu: {str(e)}"
@@ -111,41 +107,41 @@ class Vystup_wsm_komp(Vystup_wsm_kompTemplate):
         """Zobrazí vstupní data analýzy v přehledné formě."""
         try:
             md = f"""
-### {analyza_data['analyza']['nazev']}
+### {analyza_data['nazev']}
 
 #### Základní informace
 - Metoda: WSM (Weighted Sum Model)
-- Popis: {analyza_data['analyza']['popis'] or 'Bez popisu'}
+- Popis: {analyza_data.get('popis_analyzy', 'Bez popisu')}
 
 #### Kritéria
 | Název kritéria | Typ | Váha |
 |----------------|-----|------|
 """
             # Přidání kritérií
-            for k in analyza_data['kriteria']:
-                vaha = float(k['vaha'])
-                md += f"| {k['nazev_kriteria']} | {k['typ'].upper()} | {vaha:.3f} |\n"
+            kriteria = analyza_data.get('kriteria', {})
+            for nazev_krit, krit_data in kriteria.items():
+                vaha = float(krit_data['vaha'])
+                md += f"| {nazev_krit} | {krit_data['typ'].upper()} | {vaha:.3f} |\n"
 
             # Varianty
             md += "\n#### Varianty\n"
-            for v in analyza_data['varianty']:
-                popis = f" - {v['popis_varianty']}" if v['popis_varianty'] else ""
-                md += f"- {v['nazev_varianty']}{popis}\n"
+            varianty = analyza_data.get('varianty', {})
+            for nazev_var, var_data in varianty.items():
+                popis = f" - {var_data.get('popis_varianty', '')}" if var_data.get('popis_varianty') else ""
+                md += f"- {nazev_var}{popis}\n"
 
             # Hodnotící matice
-            varianty = [v['nazev_varianty'] for v in analyza_data['varianty']]
-            kriteria = [k['nazev_kriteria'] for k in analyza_data['kriteria']]
+            kriteria_nazvy = list(kriteria.keys())
+            varianty_nazvy = list(varianty.keys())
             
             md += "\n#### Hodnotící matice\n"
-            md += f"| Kritérium | {' | '.join(varianty)} |\n"
-            md += f"|{'-' * 10}|{('|'.join('-' * 12 for _ in varianty))}|\n"
+            md += f"| Kritérium | {' | '.join(varianty_nazvy)} |\n"
+            md += f"|{'-' * 10}|{('|'.join('-' * 12 for _ in varianty_nazvy))}|\n"
             
-            matice = analyza_data['hodnoty']['matice_hodnoty']
-            for krit in kriteria:
-                radek = f"| {krit} |"
-                for var in varianty:
-                    klic = f"{var}_{krit}"
-                    hodnota = matice.get(klic, "N/A")
+            for nazev_krit in kriteria_nazvy:
+                radek = f"| {nazev_krit} |"
+                for nazev_var in varianty_nazvy:
+                    hodnota = varianty[nazev_var].get(nazev_krit, "N/A")
                     hodnota = f" {hodnota:.2f} |" if isinstance(hodnota, (int, float)) else f" {hodnota} |"
                     radek += hodnota
                 md += radek + "\n"
@@ -300,18 +296,77 @@ WSM, také známý jako Simple Additive Weighting (SAW), je jedna z nejjednoduš
 
             # Přidání grafu skladby skóre 
             if hasattr(self, 'plot_wsm_skladba'):
-                norm_vysledky = self._posledni_normalizacni_vysledky  #
-                vazene_matice = self._posledni_vazene_matice  
-                vahy = self._posledni_vahy  
-                
                 self.plot_wsm_skladba.figure = self._vytvor_graf_skladby_skore(
-                    norm_vysledky, vazene_matice, vahy)
+                    self._posledni_normalizacni_vysledky, 
+                    self._posledni_vazene_matice, 
+                    self._posledni_vahy)
                 self.plot_wsm_skladba.visible = True
             
         except Exception as e:
             Utils.zapsat_chybu(f"Chyba při zobrazování výsledků: {str(e)}")
             self.rich_text_vysledek.content = f"Chyba při zobrazování výsledků: {str(e)}"
             self.plot_wsm_vysledek.visible = False
+
+    def _zobraz_citlivostni_analyzu(self, norm_vysledky, vahy):
+        """
+        Zobrazí analýzu citlivosti včetně textu a grafů.
+        
+        Args:
+            norm_vysledky: Výsledky normalizace matice
+            vahy: Seznam vah kritérií
+        """
+        try:
+            # Kontrola, zda existují potřebné komponenty
+            if not hasattr(self, 'rich_text_citlivost') or not hasattr(self, 'plot_citlivost_skore'):
+                Utils.zapsat_info("Komponenty pro citlivostní analýzu nejsou k dispozici")
+                return
+            
+            # Připravíme popis analýzy citlivosti
+            citlivost_md = """
+### Analýza citlivosti vah kritérií
+
+Analýza citlivosti umožňuje posoudit, jak změna váhy vybraného kritéria ovlivní celkové hodnocení variant. 
+V grafech níže je znázorněno, jak by se změnilo celkové skóre a pořadí variant při různých vahách prvního kritéria. 
+Ostatní váhy jsou vždy proporcionálně upraveny, aby součet všech vah zůstal roven 1.
+
+**Interpretace analýzy citlivosti:**
+- Pokud jsou křivky variant blízko u sebe nebo se protínají, značí to, že výsledky jsou citlivé na malé změny ve vahách.
+- Pokud jsou křivky variant vzájemně vzdálené bez protnutí, výsledek je robustní a méně citlivý na změny vah.
+- Místa, kde se křivky protínají, odpovídají hodnotám vah, při kterých dochází ke změně pořadí variant.
+
+**Praktické využití:** Pomocí analýzy citlivosti můžete identifikovat, jak by se výsledek změnil, pokud byste některému kritériu přikládali větší nebo menší důležitost.
+"""
+            self.rich_text_citlivost.content = citlivost_md
+            
+            # Výpočet analýzy citlivosti pro první kritérium
+            analyza_citlivosti = Vypocty.vypocitej_analyzu_citlivosti(
+                norm_vysledky['normalizovana_matice'], 
+                vahy, 
+                norm_vysledky['nazvy_variant'], 
+                norm_vysledky['nazvy_kriterii']
+            )
+            
+            # Zobrazení grafů
+            if hasattr(self, 'plot_citlivost_skore'):
+                self.plot_citlivost_skore.figure = self._vytvor_graf_citlivosti_skore(
+                    analyza_citlivosti, norm_vysledky['nazvy_variant'])
+                self.plot_citlivost_skore.visible = True
+            
+            if hasattr(self, 'plot_citlivost_poradi'):
+                self.plot_citlivost_poradi.figure = self._vytvor_graf_citlivosti_poradi(
+                    analyza_citlivosti, norm_vysledky['nazvy_variant'])
+                self.plot_citlivost_poradi.visible = True
+            
+            Utils.zapsat_info("Citlivostní analýza úspěšně zobrazena")
+            
+        except Exception as e:
+            Utils.zapsat_chybu(f"Chyba při zobrazování analýzy citlivosti: {str(e)}")
+            if hasattr(self, 'rich_text_citlivost'):
+                self.rich_text_citlivost.content = f"Chyba při zobrazování analýzy citlivosti: {str(e)}"
+            if hasattr(self, 'plot_citlivost_skore'):
+                self.plot_citlivost_skore.visible = False
+            if hasattr(self, 'plot_citlivost_poradi'):
+                self.plot_citlivost_poradi.visible = False
 
     def _vytvor_graf_vysledku(self, wsm_vysledky):
         """
@@ -447,63 +502,6 @@ WSM, také známý jako Simple Additive Weighting (SAW), je jedna z nejjednoduš
                 }
             }
 
-    def _zobraz_citlivostni_analyzu(self):
-        """
-        Zobrazí analýzu citlivosti včetně textu a grafů.
-        """
-        try:
-            # Kontrola, zda existují potřebné komponenty
-            if not hasattr(self, 'rich_text_citlivost') or not hasattr(self, 'plot_citlivost_skore') or not hasattr(self, 'plot_citlivost_poradi'):
-                Utils.zapsat_info("Komponenty pro citlivostní analýzu nejsou k dispozici")
-                return
-            
-            # Připravíme popis analýzy citlivosti
-            citlivost_md = """
-### Analýza citlivosti vah kritérií
-
-Analýza citlivosti umožňuje posoudit, jak změna váhy vybraného kritéria ovlivní celkové hodnocení variant. 
-V grafech níže je znázorněno, jak by se změnilo celkové skóre a pořadí variant při různých vahách prvního kritéria. 
-Ostatní váhy jsou vždy proporcionálně upraveny, aby součet všech vah zůstal roven 1.
-
-**Interpretace analýzy citlivosti:**
-- Pokud jsou křivky variant blízko u sebe nebo se protínají, značí to, že výsledky jsou citlivé na malé změny ve vahách.
-- Pokud jsou křivky variant vzájemně vzdálené bez protnutí, výsledek je robustní a méně citlivý na změny vah.
-- Místa, kde se křivky protínají, odpovídají hodnotám vah, při kterých dochází ke změně pořadí variant.
-
-**Praktické využití:** Pomocí analýzy citlivosti můžete identifikovat, jak by se výsledek změnil, pokud byste některému kritériu přikládali větší nebo menší důležitost.
-"""
-            self.rich_text_citlivost.content = citlivost_md
-            
-            # Získáme potřebná data pro výpočet
-            norm_matice = self._posledni_normalizacni_vysledky['normalizovana_matice']
-            varianty = self._posledni_normalizacni_vysledky['nazvy_variant']
-            kriteria = self._posledni_normalizacni_vysledky['nazvy_kriterii']
-            vahy = self._posledni_vahy
-            
-            # Výpočet analýzy citlivosti pro první kritérium
-            analyza_citlivosti = Vypocty.vypocitej_analyzu_citlivosti(
-                norm_matice, vahy, varianty, kriteria)
-            
-            # Vytvoření grafů citlivosti
-            self.plot_citlivost_skore.figure = self._vytvor_graf_citlivosti_skore(
-                analyza_citlivosti, varianty)
-            self.plot_citlivost_skore.visible = True
-            
-            self.plot_citlivost_poradi.figure = self._vytvor_graf_citlivosti_poradi(
-                analyza_citlivosti, varianty)
-            self.plot_citlivost_poradi.visible = True
-            
-            Utils.zapsat_info("Citlivostní analýza úspěšně zobrazena")
-            
-        except Exception as e:
-            Utils.zapsat_chybu(f"Chyba při zobrazování analýzy citlivosti: {str(e)}")
-            if hasattr(self, 'rich_text_citlivost'):
-                self.rich_text_citlivost.content = f"Chyba při zobrazování analýzy citlivosti: {str(e)}"
-            if hasattr(self, 'plot_citlivost_skore'):
-                self.plot_citlivost_skore.visible = False
-            if hasattr(self, 'plot_citlivost_poradi'):
-                self.plot_citlivost_poradi.visible = False
-  
     def _vytvor_graf_citlivosti_skore(self, analyza_citlivosti, varianty):
         """
         Vytvoří graf analýzy citlivosti pro celkové skóre.

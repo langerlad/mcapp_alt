@@ -23,6 +23,7 @@ from .Dashboard_uziv_komp import Dashboard_uziv_komp
 from .Ucet_komp import Ucet_komp
 from .Vyber_analyzy_komp import Vyber_analyzy_komp
 from .Vystup_saw_komp import Vystup_saw_komp
+from .Vystup_saw_html import Vystup_saw_html
 from .Vystup_wsm_komp import Vystup_wsm_komp
 from .Vystup_wpm_komp import Vystup_wpm_komp
 from .Vystup_topsis_komp import Vystup_topsis_komp
@@ -95,7 +96,7 @@ KONFIGURACE_NAVIGACE = {
         'kontrola_rozpracovane': False
     },
     'vystup_saw': {
-        'komponenta': Vystup_saw_komp,
+        'komponenta': Vystup_saw_html,
         'vyzaduje_prihlaseni': True,
         'oznaceni_nav': None,
         'kontrola_rozpracovane': False

@@ -2,7 +2,7 @@ components:
 - components: []
   layout_properties: {slot: default}
   name: pravy_panel
-  properties: {}
+  properties: {col_spacing: medium, role: null}
   type: ColumnPanel
 - components:
   - data_bindings:

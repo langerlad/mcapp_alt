@@ -4,109 +4,56 @@ db_schema:
   analyzy:
     client: none
     columns:
-    - admin_ui: {order: 0, width: 200}
+    - admin_ui: {width: 200}
       name: uzivatel
       target: users
       type: link_single
-    - admin_ui: {order: 1, width: 200}
+    - admin_ui: {width: 200}
       name: nazev
       type: string
-    - admin_ui: {order: 2, width: 299}
+    - admin_ui: {width: 299}
       name: data_json
       type: simpleObject
-    - admin_ui: {order: 3, width: 200}
+    - admin_ui: {width: 200}
       name: datum_vytvoreni
       type: datetime
-    - admin_ui: {order: 4, width: 200}
+    - admin_ui: {width: 200}
       name: datum_upravy
       type: datetime
     server: full
     title: Analyzy
-  hodnota:
-    client: none
-    columns:
-    - admin_ui: {order: 0, width: 200}
-      name: varianta
-      target: varianta
-      type: link_single
-    - admin_ui: {order: 1, width: 200}
-      name: kriterium
-      target: kriterium
-      type: link_single
-    - admin_ui: {order: 2, width: 200}
-      name: hodnota
-      type: number
-    - admin_ui: {order: -1, width: 200}
-      name: analyza
-      target: analyza
-      type: link_single
-    server: full
-    title: Hodnota
-  kriterium:
-    client: none
-    columns:
-    - admin_ui: {order: 0, width: 200}
-      name: analyza
-      target: analyza
-      type: link_single
-    - admin_ui: {order: 1, width: 200}
-      name: nazev_kriteria
-      type: string
-    - admin_ui: {order: 2, width: 200}
-      name: typ
-      type: string
-    - admin_ui: {order: 3, width: 200}
-      name: vaha
-      type: number
-    server: full
-    title: Kriterium
   users:
     client: none
     columns:
-    - admin_ui: {order: 0, width: 200}
+    - admin_ui: {width: 200}
       name: email
       type: string
-    - admin_ui: {order: 1, width: 200}
+    - admin_ui: {width: 200}
       name: enabled
       type: bool
-    - admin_ui: {order: 2, width: 200}
+    - admin_ui: {width: 200}
       name: last_login
       type: datetime
-    - admin_ui: {order: 3, width: 200}
+    - admin_ui: {width: 200}
       name: password_hash
       type: string
-    - admin_ui: {order: 4, width: 200}
+    - admin_ui: {width: 200}
       name: n_password_failures
       type: number
-    - admin_ui: {order: 5, width: 200}
+    - admin_ui: {width: 200}
       name: confirmed_email
       type: bool
-    - admin_ui: {order: 6, width: 200}
+    - admin_ui: {width: 200}
       name: signed_up
       type: datetime
-    - admin_ui: {order: 7, width: 200}
+    - admin_ui: {width: 200}
       name: remembered_logins
       type: simpleObject
-    - admin_ui: {order: 8, width: 200}
+    - admin_ui: {width: 200}
       name: role
       type: string
     server: full
     title: Users
-  varianta:
-    client: none
-    columns:
-    - admin_ui: {order: 0, width: 200}
-      name: analyza
-      target: analyza
-      type: link_single
-    - admin_ui: {order: 1, width: 200}
-      name: nazev_varianty
-      type: string
-    - admin_ui: {order: 2, width: 200}
-      name: popis_varianty
-      type: string
-    server: full
-    title: Varianta
 dependencies: []
 metadata: {description: Vícekriteriální analýza variant., logo_img: 'asset:Bez názvu.png', title: MCApp}
 name: MCApp_dbv

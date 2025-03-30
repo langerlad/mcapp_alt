@@ -1,6 +1,0 @@
-components: []
-container:
-  properties:
-    html: "<center style=\"font-style:italic; color:#888; margin: 3em;\">\n\n  <!-- \n  form_template.html pro Custom HTML Form - Vystup_saw_html\n  Zobrazuje výsledky SAW analýzy\n -->\n\n  <div class=\"analyza-kontejner\">\n  <!-- Hlavní nadpis analýzy (nastavuje se z Python kódu) -->\n  <h1 class=\"nadpis-hlavni\" id=\"nazev-analyzy\">Výsledky analýzy</h1>\n\n  <!-- Slot pro tlačítka akcí -->\n  <div class=\"tlacitko-skupina\">\n    <div anvil-slot=\"tlacitka_akce\"></div>\n  </div>\n\n  <!-- Slot pro základní informace o analýze -->\n  <div anvil-slot=\"zakladni_informace\"></div>\n\n  <!-- Slot pro vstupní data -->\n  <div anvil-slot=\"vstupni_data\"></div>\n\n  <!-- Slot pro výpočty a normalizaci -->\n  <div anvil-slot=\"vypocty\"></div>\n\n  <!-- Slot pro výsledky -->\n  <div anvil-slot=\"vysledky\"></div>\n\n  <!-- Slot pro grafy -->\n  <div anvil-slot=\"grafy\"></div>\n\n  <!-- Slot pro citlivostní analýzu -->\n  <div anvil-slot=\"citlivostni_analyza\"></div>\n</div>\n\n<!-- Import CSS z Assets -->\n<link rel=\"stylesheet\" href=\"_/theme/vystup.css\">\n\n  \n</center>\n<div anvil-slot=\"default\"></div>"
-  type: HtmlTemplate
-is_package: true

@@ -11,7 +11,7 @@ components:
 - components:
   - layout_properties: {full_width_row: false, grid_position: 'RXVZRV,VHJFDK'}
     name: rich_text_vstupni_data
-    properties: {content: '', format: markdown}
+    properties: {content: '', format: restricted_html}
     type: RichText
   layout_properties: {full_width_row: false, grid_position: 'TSUEFT,MUVHNP'}
   name: card_1
@@ -24,7 +24,7 @@ components:
 - components:
   - layout_properties: {full_width_row: false, grid_position: 'MEJNRR,JYKCAC'}
     name: rich_text_normalizace
-    properties: {}
+    properties: {format: restricted_html}
     type: RichText
   layout_properties: {full_width_row: false, grid_position: 'RSXEPT,VZLMKC'}
   name: card_2
@@ -37,7 +37,7 @@ components:
 - components:
   - layout_properties: {full_width_row: false, grid_position: 'GKGQKH,UEPYOY'}
     name: rich_text_vysledek
-    properties: {}
+    properties: {format: restricted_html}
     type: RichText
   layout_properties: {full_width_row: false, grid_position: 'LXUORE,NYUVMQ'}
   name: card_3

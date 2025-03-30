@@ -1,12 +1,12 @@
+# client_code/Vystup_saw_komp/__init__.py
 from ._anvil_designer import Vystup_saw_kompTemplate
 from anvil import *
-import plotly.graph_objects as go
 import anvil.server
 import anvil.tables as tables
 import anvil.tables.query as q
 from anvil.tables import app_tables
 import anvil.users
-from .. import Spravce_stavu, Utils
+from .. import Spravce_stavu, Utils, Vypocty, Vizualizace
 
 
 class Vystup_saw_komp(Vystup_saw_kompTemplate):
@@ -17,7 +17,7 @@ class Vystup_saw_komp(Vystup_saw_kompTemplate):
     - normalizované matice
     - vážených hodnot
     - finálních výsledků
-    Upraveno pro novou JSON strukturu.
+    Využívá moduly Vypocty.py pro výpočty a Vizualizace.py pro zobrazování.
     """
     def __init__(self, analyza_id=None, metoda=None, **properties):
         self.init_components(**properties)
@@ -42,7 +42,7 @@ class Vystup_saw_komp(Vystup_saw_kompTemplate):
         try:
             Utils.zapsat_info(f"Načítám výsledky analýzy ID: {self.analyza_id}")
             
-            # Načtení dat analýzy z nové JSON struktury
+            # Načtení dat analýzy z JSON struktury
             analyza_data = anvil.server.call('nacti_analyzu', self.analyza_id)
             
             # Zobrazení výsledků
@@ -57,9 +57,20 @@ class Vystup_saw_komp(Vystup_saw_kompTemplate):
     def _zobraz_prazdny_formular(self):
         """Zobrazí prázdný formulář s informací o chybějících datech."""
         Utils.zapsat_info("Zobrazuji prázdný formulář - chybí ID analýzy")
-        self.rich_text_vstupni_data.content = "Nepřišlo žádné ID analýzy."
-        self.rich_text_normalizace.content = "Není co počítat."
-        self.rich_text_vysledek.content = "Není co počítat."
+        # Nastavíme formát na HTML
+        self.rich_text_vstupni_data.format = "html"
+        self.rich_text_normalizace.format = "html"
+        self.rich_text_vysledek.format = "html"
+        
+        # Zobrazíme chybové zprávy
+        error_html = Vizualizace.vytvor_html_karta(
+            Vizualizace.vytvor_html_odstavec("Nepřišlo žádné ID analýzy."),
+            "Chyba"
+        )
+        
+        self.rich_text_vstupni_data.content = error_html
+        self.rich_text_normalizace.content = error_html
+        self.rich_text_vysledek.content = error_html
         self.plot_saw_vysledek.visible = False
 
     def _zobraz_kompletni_analyzu(self, analyza_data):
@@ -67,415 +78,283 @@ class Vystup_saw_komp(Vystup_saw_kompTemplate):
         Zobrazí kompletní analýzu včetně všech výpočtů.
         
         Args:
-            analyza_data: Slovník s kompletními daty analýzy v novém formátu
+            analyza_data: Slovník s kompletními daty analýzy v JSON formátu
         """
         # Zobrazení vstupních dat
         self._zobraz_vstupni_data(analyza_data)
         
         # Provedení výpočtů
         try:
-            norm_vysledky = self._normalizuj_matici(analyza_data)
-            vazene_hodnoty = self._vypocitej_vazene_hodnoty(analyza_data, norm_vysledky)
-            saw_vysledky = self._vypocitej_saw_vysledky(analyza_data, vazene_hodnoty)
+            # Využití modulu Vypocty.py pro zpracování dat a výpočty
+            matice, typy_kriterii, varianty, kriteria, vahy = Vypocty.priprav_data_z_json(analyza_data)
+            
+            # Normalizace matice
+            norm_vysledky = Vypocty.normalizuj_matici_minmax(matice, typy_kriterii, varianty, kriteria)
+            
+            # Výpočet vážených hodnot
+            vazene_matice = Vypocty.vypocitej_vazene_hodnoty(norm_vysledky['normalizovana_matice'], vahy)
+            
+            # Výpočet výsledků SAW metodou
+            saw_vysledky = Vypocty.wsm_vypocet(norm_vysledky['normalizovana_matice'], vahy, varianty)
+            
+            # Pro analýzu citlivosti
+            citlivost_data = Vypocty.vypocitej_analyzu_citlivosti(
+                norm_vysledky['normalizovana_matice'], 
+                vahy, 
+                varianty,
+                kriteria
+            )
             
             # Zobrazení výsledků
-            self._zobraz_normalizaci(norm_vysledky, vazene_hodnoty)
-            self._zobraz_vysledky(saw_vysledky)
+            self._zobraz_normalizaci(norm_vysledky, vazene_matice, vahy)
+            self._zobraz_vysledky(saw_vysledky, citlivost_data)
+            
         except Exception as e:
             Utils.zapsat_chybu(f"Chyba při výpočtu výsledků: {str(e)}")
-            self.rich_text_normalizace.content = f"Chyba při výpočtu: {str(e)}"
-            self.rich_text_vysledek.content = f"Chyba při výpočtu: {str(e)}"
+            
+            # Použijeme HTML formát pro chybové zprávy
+            error_html = Vizualizace.vytvor_html_karta(
+                Vizualizace.vytvor_html_odstavec(f"Chyba při výpočtu: {str(e)}"),
+                "Chyba ve výpočtu"
+            )
+            
+            self.rich_text_normalizace.format = "html"
+            self.rich_text_vysledek.format = "html"
+            self.rich_text_normalizace.content = error_html
+            self.rich_text_vysledek.content = error_html
             self.plot_saw_vysledek.visible = False
 
     def _zobraz_vstupni_data(self, analyza_data):
-        """Zobrazí vstupní data analýzy v přehledné formě."""
+        """Zobrazí vstupní data analýzy v přehledné formě s využitím HTML."""
         try:
-            md = f"""
-### {analyza_data['nazev']}
-
-#### Základní informace
-- Metoda: SAW
-- Popis: {analyza_data.get('popis_analyzy', 'Bez popisu')}
-
-#### Kritéria
-| Název kritéria | Typ | Váha |
-|----------------|-----|------|
-"""
-            # Přidání kritérií
+            # Nastavení formátu na HTML
+            self.rich_text_vstupni_data.format = "html"
+            
+            # Základní informace
+            nazev = analyza_data['nazev']
+            popis = analyza_data.get('popis_analyzy', 'Bez popisu')
+            
+            # Vytvoření hlavičky sekce pomocí modulů Vizualizace
+            html = Vizualizace.vytvor_html_nadpis(nazev, 3)
+            
+            # Základní informace
+            zakladni_info = [
+                f"<strong>Metoda:</strong> {self.metoda}",
+                f"<strong>Popis:</strong> {popis}"
+            ]
+            html += Vizualizace.vytvor_html_nadpis("Základní informace", 4)
+            html += Vizualizace.vytvor_html_seznam(zakladni_info)
+            
+            # Tabulka kritérií
             kriteria = analyza_data.get('kriteria', {})
-            for nazev_krit, krit_data in kriteria.items():
-                vaha = float(krit_data['vaha'])
-                md += f"| {nazev_krit} | {krit_data['typ'].upper()} | {vaha:.3f} |\n"
-
-            # Varianty
-            md += "\n#### Varianty\n"
+            html += Vizualizace.vytvor_html_tabulku_kriterii(
+                kriteria,
+                "Kritéria analýzy"
+            )
+            
+            # Seznam variant
             varianty = analyza_data.get('varianty', {})
-            for nazev_var, var_data in varianty.items():
-                popis = f" - {var_data.get('popis_varianty', '')}" if var_data.get('popis_varianty') else ""
-                md += f"- {nazev_var}{popis}\n"
-
+            html += Vizualizace.vytvor_html_tabulku_variant(
+                varianty,
+                "Varianty analýzy"
+            )
+            
             # Hodnotící matice
             kriteria_nazvy = list(kriteria.keys())
             varianty_nazvy = list(varianty.keys())
             
-            md += "\n#### Hodnotící matice\n"
-            md += f"| Kritérium | {' | '.join(varianty_nazvy)} |\n"
-            md += f"|{'-' * 10}|{('|'.join('-' * 12 for _ in varianty_nazvy))}|\n"
+            html += Vizualizace.vytvor_html_matici_hodnot(
+                varianty_nazvy,
+                kriteria_nazvy,
+                varianty,
+                "Hodnotící matice"
+            )
             
-            for nazev_krit in kriteria_nazvy:
-                radek = f"| {nazev_krit} |"
-                for nazev_var in varianty_nazvy:
-                    hodnota = varianty[nazev_var].get(nazev_krit, "N/A")
-                    hodnota = f" {hodnota:.2f} |" if isinstance(hodnota, (int, float)) else f" {hodnota} |"
-                    radek += hodnota
-                md += radek + "\n"
-
-            self.rich_text_vstupni_data.content = md
+            # Nastavení obsahu komponenty
+            self.rich_text_vstupni_data.content = html
+            
         except Exception as e:
             Utils.zapsat_chybu(f"Chyba při zobrazování vstupních dat: {str(e)}")
-            self.rich_text_vstupni_data.content = f"Chyba při zobrazování vstupních dat: {str(e)}"
+            self.rich_text_vstupni_data.format = "html"
+            self.rich_text_vstupni_data.content = Vizualizace.vytvor_html_karta(
+                Vizualizace.vytvor_html_odstavec(f"Chyba při zobrazování vstupních dat: {str(e)}"),
+                "Chyba"
+            )
 
-    def _normalizuj_matici(self, analyza_data):
+    def _zobraz_normalizaci(self, norm_vysledky, vazene_matice, vahy):
         """
-        Provede min-max normalizaci hodnot.
+        Zobrazí normalizovanou matici a vážené hodnoty s využitím HTML.
         
         Args:
-            analyza_data: Slovník obsahující data analýzy v novém formátu
-        
-        Returns:
-            dict: Slovník obsahující normalizovanou matici a metadata
+            norm_vysledky: Výsledky normalizace z Vypocty.normalizuj_matici_minmax
+            vazene_matice: Výsledky z Vypocty.vypocitej_vazene_hodnoty
+            vahy: Seznam vah kritérií
         """
         try:
-            kriteria = analyza_data.get('kriteria', {})
-            varianty = analyza_data.get('varianty', {})
+            # Nastavení formátu na HTML
+            self.rich_text_normalizace.format = "html"
             
-            # Seznamy pro názvy
-            kriteria_nazvy = list(kriteria.keys())
-            varianty_nazvy = list(varianty.keys())
+            # Extrakce dat pro zobrazení
+            varianty = norm_vysledky['nazvy_variant']
+            kriteria = norm_vysledky['nazvy_kriterii']
+            norm_matice = norm_vysledky['normalizovana_matice']
             
-            # Vytvoření původní matice
-            matice = []
-            for nazev_var in varianty_nazvy:
-                radek = []
-                var_data = varianty[nazev_var]
-                for nazev_krit in kriteria_nazvy:
-                    hodnota = float(var_data.get(nazev_krit, 0))
-                    radek.append(hodnota)
-                matice.append(radek)
+            # Vytvoření HTML obsahu
+            html = "<div style='font-family: Arial, sans-serif; line-height: 1.6;'>"
+            html += Vizualizace.vytvor_html_nadpis("Normalizace hodnot metodou Min-Max", 3)
             
-            # Normalizace pomocí min-max pro každý sloupec (kritérium)
-            norm_matice = []
-            for i in range(len(matice)):
-                norm_radek = []
-                for j in range(len(matice[0])):
-                    sloupec = [row[j] for row in matice]
-                    min_val = min(sloupec)
-                    max_val = max(sloupec)
-                    
-                    if max_val == min_val:
-                        norm_hodnota = 1.0  # Všechny hodnoty jsou stejné
-                    else:
-                        # Pro MIN kritéria obrátíme normalizaci
-                        krit_typ = kriteria[kriteria_nazvy[j]]['typ'].lower()
-                        if krit_typ in ("min", "cost"):
-                            norm_hodnota = (max_val - matice[i][j]) / (max_val - min_val)
-                        else:
-                            norm_hodnota = (matice[i][j] - min_val) / (max_val - min_val)
-                    
-                    norm_radek.append(norm_hodnota)
-                norm_matice.append(norm_radek)
+            # Tabulka normalizovaných hodnot pomocí Vizualizace modulu
+            html += Vizualizace.vytvor_html_tabulku_hodnot(
+                varianty,
+                kriteria,
+                norm_matice,
+                "Normalizovaná matice",
+                formatovaci_funkce=lambda x: f"{x:.3f}"
+            )
             
-            return {
-                'nazvy_variant': varianty_nazvy,
-                'nazvy_kriterii': kriteria_nazvy,
-                'normalizovana_matice': norm_matice
-            }
-        except Exception as e:
-            Utils.zapsat_chybu(f"Chyba při normalizaci matice: {str(e)}")
-            raise
-
-    def _vypocitej_vazene_hodnoty(self, analyza_data, norm_vysledky):
-        """
-        Vypočítá vážené hodnoty pro všechny varianty a kritéria.
-        
-        Args:
-            analyza_data: Slovník s daty analýzy v novém formátu
-            norm_vysledky: Výsledky normalizace
-            
-        Returns:
-            dict: Slovník vážených hodnot pro každou variantu a kritérium
-        """
-        try:
-            vazene_hodnoty = {}
-            kriteria = analyza_data.get('kriteria', {})
-            
-            for i, varianta in enumerate(norm_vysledky['nazvy_variant']):
-                vazene_hodnoty[varianta] = {}
-                for j, kriterium in enumerate(norm_vysledky['nazvy_kriterii']):
-                    norm_hodnota = norm_vysledky['normalizovana_matice'][i][j]
-                    vaha = float(kriteria[kriterium]['vaha'])
-                    vazene_hodnoty[varianta][kriterium] = norm_hodnota * vaha
-            
-            return vazene_hodnoty
-        except Exception as e:
-            Utils.zapsat_chybu(f"Chyba při výpočtu vážených hodnot: {str(e)}")
-            raise
-
-    def _vypocitej_saw_vysledky(self, analyza_data, vazene_hodnoty):
-        """
-        Vypočítá finální výsledky SAW analýzy.
-        
-        Args:
-            analyza_data: Slovník s daty analýzy v novém formátu
-            vazene_hodnoty: Slovník vážených hodnot
-            
-        Returns:
-            dict: Slovník obsahující seřazené výsledky a statistiky
-        """
-        try:
-            # Výpočet celkového skóre pro každou variantu
-            skore = {}
-            for varianta, hodnoty in vazene_hodnoty.items():
-                skore[varianta] = sum(hodnoty.values())
-            
-            # Seřazení variant podle skóre (sestupně)
-            serazene = sorted(skore.items(), key=lambda x: x[1], reverse=True)
-            
-            # Vytvoření seznamu výsledků s pořadím
-            results = []
-            for poradi, (varianta, hodnota) in enumerate(serazene, 1):
-                results.append((varianta, poradi, hodnota))
-            
-            return {
-                'results': results,
-                'nejlepsi_varianta': results[0][0],
-                'nejlepsi_skore': results[0][2],
-                'nejhorsi_varianta': results[-1][0],
-                'nejhorsi_skore': results[-1][2],
-                'rozdil_skore': results[0][2] - results[-1][2]
-            }
-        except Exception as e:
-            Utils.zapsat_chybu(f"Chyba při výpočtu SAW výsledků: {str(e)}")
-            raise
-
-    def _zobraz_normalizaci(self, norm_vysledky, vazene_hodnoty):
-        """
-        Zobrazí normalizovanou matici a vážené hodnoty.
-        
-        Args:
-            norm_vysledky: Výsledky normalizace
-            vazene_hodnoty: Vypočtené vážené hodnoty
-        """
-        try:
-            md = "### Normalizace hodnot\n\n"
-            
-            # Normalizační tabulka
-            md += "| Varianta / Krit. | " + " | ".join(norm_vysledky['nazvy_kriterii']) + " |\n"
-            md += "|" + "-|"*(len(norm_vysledky['nazvy_kriterii'])+1) + "\n"
-            
-            for i, var_name in enumerate(norm_vysledky['nazvy_variant']):
-                md += f"| {var_name} |"
-                for j in range(len(norm_vysledky['nazvy_kriterii'])):
-                    md += f" {norm_vysledky['normalizovana_matice'][i][j]:.3f} |"
-                md += "\n"
-
-            # Vysvětlení normalizace
-            md += self._vytvor_vysvetleni_normalizace()
+            # Vysvětlení min-max normalizace
+            html += """
+            <div style="margin: 20px 0; padding: 15px; background-color: #f9f9f9; border-left: 4px solid #4CAF50; border-radius: 4px;">
+                <h4>Princip metody Min-Max normalizace:</h4>
+                
+                <p><strong>Pro Maximalizační kritéria</strong> (čím více, tím lépe):</p>
+                <ul>
+                    <li>Normalizovaná hodnota = (hodnota - minimum) / (maximum - minimum)</li>
+                    <li>Nejlepší hodnota = 1 (maximum)</li>
+                    <li>Nejhorší hodnota = 0 (minimum)</li>
+                </ul>
+                
+                <p><strong>Pro Minimalizační kritéria</strong> (čím méně, tím lépe):</p>
+                <ul>
+                    <li>Normalizovaná hodnota = (maximum - hodnota) / (maximum - minimum)</li>
+                    <li>Nejlepší hodnota = 1 (minimum)</li>
+                    <li>Nejhorší hodnota = 0 (maximum)</li>
+                </ul>
+                
+                <p><strong>Kde:</strong></p>
+                <ul>
+                    <li>minimum = nejmenší hodnota v daném kritériu</li>
+                    <li>maximum = největší hodnota v daném kritériu</li>
+                </ul>
+            </div>
+            """
             
             # Tabulka vážených hodnot
-            md += self._vytvor_tabulku_vazenych_hodnot(vazene_hodnoty)
+            html += Vizualizace.vytvor_html_tabulku_hodnot(
+                varianty,
+                kriteria,
+                vazene_matice,
+                "Vážené hodnoty (normalizované hodnoty × váhy)",
+                formatovaci_funkce=lambda x: f"{x:.3f}"
+            )
             
-            # Vysvětlení vážených hodnot
-            md += self._vytvor_vysvetleni_vazenych_hodnot()
+            # Interpretace vážených hodnot
+            html += """
+            <div style="margin: 20px 0; padding: 15px; background-color: #f9f9f9; border-left: 4px solid #3498db; border-radius: 4px;">
+                <h4>Interpretace vážených hodnot:</h4>
+                <ol>
+                    <li>Pro každé kritérium je normalizovaná hodnota vynásobena příslušnou vahou.</li>
+                    <li>Vážené hodnoty ukazují, jak jednotlivé kritérium přispívá ke konečnému hodnocení varianty.</li>
+                    <li><strong>Součet vážených hodnot</strong> představuje konečné skóre varianty a slouží pro určení pořadí variant.</li>
+                    <li>Čím vyšší je skóre, tím lépe varianta splňuje požadavky definované kritérii a jejich vahami.</li>
+                </ol>
+            </div>
+            """
             
-            self.rich_text_normalizace.content = md
+            html += "</div>" # Uzavření hlavního div
+            
+            # Nastavení obsahu komponenty
+            self.rich_text_normalizace.content = html
+            
         except Exception as e:
             Utils.zapsat_chybu(f"Chyba při zobrazování normalizace: {str(e)}")
-            self.rich_text_normalizace.content = f"Chyba při zobrazování normalizace: {str(e)}"
+            self.rich_text_normalizace.format = "html"
+            self.rich_text_normalizace.content = Vizualizace.vytvor_html_karta(
+                Vizualizace.vytvor_html_odstavec(f"Chyba při zobrazování normalizace: {str(e)}"),
+                "Chyba"
+            )
 
-    def _zobraz_vysledky(self, saw_vysledky):
+    def _zobraz_vysledky(self, saw_vysledky, citlivost_data=None):
         """
-        Zobrazí finální výsledky SAW analýzy.
+        Zobrazí finální výsledky SAW analýzy s využitím HTML.
         
         Args:
-            saw_vysledky: Výsledky SAW analýzy
+            saw_vysledky: Výsledky SAW analýzy z Vypocty.wsm_vypocet
+            citlivost_data: Volitelná data z analýzy citlivosti
         """
         try:
-            md = "### Výsledky SAW analýzy\n\n"
+            # Nastavení formátu na HTML
+            self.rich_text_vysledek.format = "html"
             
-            # Tabulka výsledků
-            md += "| Pořadí | Varianta | Skóre |\n"
-            md += "|---------|----------|--------|\n"
+            # Vytvoření HTML dokumentu
+            html = f"""
+            <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+                <h3>Výsledky {self.metoda} analýzy</h3>
+            """
             
-            for varianta, poradi, skore in saw_vysledky['results']:
-                md += f"| {poradi}. | {varianta} | {skore:.3f} |\n"
-
+            # Tabulka s výsledky
+            html += Vizualizace.vytvor_html_tabulku_vysledku(
+                saw_vysledky['results'],
+                {0: "Pořadí", 1: "Varianta", 2: "Skóre"},
+                "Pořadí variant"
+            )
+            
             # Shrnutí výsledků
-            md += f"""
-#### Shrnutí výsledků
-- Nejlepší varianta: {saw_vysledky['nejlepsi_varianta']} (skóre: {saw_vysledky['nejlepsi_skore']:.3f})
-- Nejhorší varianta: {saw_vysledky['nejhorsi_varianta']} (skóre: {saw_vysledky['nejhorsi_skore']:.3f})
-- Rozdíl nejlepší-nejhorší: {saw_vysledky['rozdil_skore']:.3f}
-
-#### Metoda SAW (Simple Additive Weighting)
-1. Princip metody
-   - Normalizace hodnot do intervalu [0,1]
-   - Vynásobení normalizovaných hodnot vahami
-   - Sečtení vážených hodnot pro každou variantu
-
-2. Interpretace výsledků
-   - Vyšší skóre znamená lepší variantu
-   - Výsledek zohledňuje všechna kritéria dle jejich vah
-   - Rozdíly ve skóre ukazují relativní kvalitu variant
-"""
-            self.rich_text_vysledek.content = md
-
-            # Přidání grafu
-            self.plot_saw_vysledek.figure = self._vytvor_graf_vysledku(saw_vysledky)
+            max_skore = saw_vysledky['nejlepsi_skore']
+            procento = (saw_vysledky['nejhorsi_skore'] / max_skore * 100) if max_skore > 0 else 0
+            
+            html += Vizualizace.vytvor_html_shrnuti_vysledku(
+                saw_vysledky['nejlepsi_varianta'],
+                saw_vysledky['nejlepsi_skore'],
+                saw_vysledky['nejhorsi_varianta'],
+                saw_vysledky['nejhorsi_skore'],
+                {"Poměr nejhorší/nejlepší": f"{procento:.1f}% z maxima"}
+            )
+            
+            # Informace o metodě
+            html += Vizualizace.vytvor_html_shrnuti_metody(
+                self.metoda,
+                f"{self.metoda} je jedna z nejjednodušších a nejpoužívanějších metod vícekriteriálního rozhodování.",
+                [
+                    "Jednoduchá a intuitivní metoda",
+                    "Transparentní výpočty a výsledky",
+                    "Snadná interpretace"
+                ],
+                [
+                    "Předpokládá lineární užitek",
+                    "Není vhodná pro silně konfliktní kritéria",
+                    "Méně robustní vůči extrémním hodnotám než některé pokročilejší metody"
+                ]
+            )
+            
+            # Uzavření HTML dokumentu
+            html += "</div>"
+            
+            # Nastavení obsahu komponenty
+            self.rich_text_vysledek.content = html
+            
+            # Přidání grafu pomocí Vizualizace modulu
+            self.plot_saw_vysledek.figure = Vizualizace.vytvor_sloupovy_graf_vysledku(
+                saw_vysledky['results'], 
+                saw_vysledky['nejlepsi_varianta'], 
+                saw_vysledky['nejhorsi_varianta'],
+                self.metoda
+            )
             self.plot_saw_vysledek.visible = True
+            
+            # Pokud máme k dispozici analýzu citlivosti, můžeme přidat další grafy
+            if citlivost_data and hasattr(self, 'plot_citlivost'):
+                self.plot_citlivost.figure = Vizualizace.vytvor_graf_citlivosti_skore(
+                    citlivost_data,
+                    citlivost_data['nazvy_variant']
+                )
+                self.plot_citlivost.visible = True
+            
         except Exception as e:
             Utils.zapsat_chybu(f"Chyba při zobrazování výsledků: {str(e)}")
-            self.rich_text_vysledek.content = f"Chyba při zobrazování výsledků: {str(e)}"
+            self.rich_text_vysledek.format = "html"
+            self.rich_text_vysledek.content = Vizualizace.vytvor_html_karta(
+                Vizualizace.vytvor_html_odstavec(f"Chyba při zobrazování výsledků: {str(e)}"),
+                "Chyba"
+            )
             self.plot_saw_vysledek.visible = False
-
-    def _vytvor_vysvetleni_normalizace(self):
-        """Vytvoří text s vysvětlením normalizace."""
-        return """
-
-Normalizační matice představuje úpravu původních hodnot na jednotné měřítko pro spravedlivé porovnání. 
-V původních datech mohou být různá kritéria v odlišných jednotkách (např. cena v Kč a kvalita v bodech 1-10). 
-Normalizací převedeme všechny hodnoty do intervalu [0,1].
-
-#### Postup normalizace:
-1. Pro každé kritérium je určen směr optimalizace (MAX/MIN)
-2. Aplikuje se Min-Max normalizace:
-   - Pro každý sloupec se najde minimum a maximum
-   - Hodnoty jsou transformovány podle vzorce: (x - min) / (max - min)
-   - Pro MIN kritéria je výsledek odečten od 1
-3. Výsledná normalizovaná matice obsahuje hodnoty v intervalu [0,1]
-   - 1 reprezentuje nejlepší hodnotu
-   - 0 reprezentuje nejhorší hodnotu
-
-"""
-
-    def _vytvor_tabulku_vazenych_hodnot(self, vazene_hodnoty):
-        """
-        Vytvoří markdown tabulku vážených hodnot.
-        
-        Args:
-            vazene_hodnoty: Slovník vážených hodnot
-            
-        Returns:
-            str: Markdown formátovaná tabulka
-        """
-        try:
-            varianty = list(vazene_hodnoty.keys())
-            if not varianty:
-                return ""
-                
-            kriteria = list(vazene_hodnoty[varianty[0]].keys())
-            
-            md = "\n#### Vážené hodnoty\n\n"
-            md += "| Varianta | " + " | ".join(kriteria) + " | Součet |\n"
-            md += "|" + "----|"*(len(kriteria)+2) + "\n"
-            
-            for var in varianty:
-                md += f"| {var} |"
-                soucet = 0.0
-                for krit in kriteria:
-                    hodnota = vazene_hodnoty[var].get(krit, 0)
-                    soucet += hodnota
-                    md += f" {hodnota:.3f} |"
-                md += f" {soucet:.3f} |\n"
-            return md
-        except Exception as e:
-            Utils.zapsat_chybu(f"Chyba při vytváření tabulky vážených hodnot: {str(e)}")
-            return "\nChyba při vytváření tabulky vážených hodnot\n"
-
-    def _vytvor_vysvetleni_vazenych_hodnot(self):
-        """Vytvoří text s vysvětlením vážených hodnot."""
-        return """
-
-#### Vysvětlení vážených hodnot:
-
-1. Význam výpočtu
-   - Vážené hodnoty vznikají násobením normalizovaných hodnot váhami kritérií
-   - Zohledňují jak výkonnost varianty, tak důležitost kritéria
-
-2. Váhy kritérií
-   - Každému kritériu je přiřazena váha podle jeho důležitosti
-   - Součet všech vah je 1
-   - Vyšší váha znamená větší vliv na celkový výsledek
-
-3. Interpretace hodnot
-   - Vyšší hodnoty znamenají lepší hodnocení v daném kritériu
-   - Součet představuje celkové hodnocení varianty
-   - Slouží jako základ pro určení pořadí variant
-
-"""
-
-    def _vytvor_graf_vysledku(self, saw_vysledky):
-        """
-        Vytvoří sloupcový graf výsledků pomocí Plotly.
-        
-        Args:
-            saw_vysledky: Slovník s výsledky SAW analýzy
-        
-        Returns:
-            dict: Plotly figure configuration
-        """
-        try:
-            # Příprava dat pro graf
-            varianty = []
-            skore = []
-            colors = []  # Barvy pro sloupce
-            
-            # Seřazení dat podle skóre (sestupně)
-            for varianta, poradi, hodnota in saw_vysledky['results']:
-                varianty.append(varianta)
-                skore.append(hodnota)
-                # Nejlepší varianta bude mít zelenou, nejhorší červenou
-                if varianta == saw_vysledky['nejlepsi_varianta']:
-                    colors.append('#2ecc71')  # zelená
-                elif varianta == saw_vysledky['nejhorsi_varianta']:
-                    colors.append('#e74c3c')  # červená
-                else:
-                    colors.append('#3498db')  # modrá
-          
-            # Vytvoření grafu
-            fig = {
-                'data': [{
-                    'type': 'bar',
-                    'x': varianty,
-                    'y': skore,
-                    'marker': {
-                        'color': colors
-                    },
-                    'text': [f'{s:.3f}' for s in skore],  # Zobrazení hodnot nad sloupci
-                    'textposition': 'auto',
-                }],
-                'layout': {
-                    'title': 'Celkové skóre variant',
-                    'xaxis': {
-                        'title': 'Varianty',
-                        'tickangle': -45 if len(varianty) > 4 else 0  # Natočení popisků pro lepší čitelnost
-                    },
-                    'yaxis': {
-                        'title': 'Skóre',
-                        'range': [0, max(skore) * 1.1]  # Trochu místa nad sloupci pro hodnoty
-                    },
-                    'showlegend': False,
-                    'margin': {'t': 50, 'b': 100}  # Větší okraje pro popisky
-                }
-            }
-            
-            return fig
-        except Exception as e:
-            Utils.zapsat_chybu(f"Chyba při vytváření grafu: {str(e)}")
-            # Vrátíme prázdný graf
-            return {
-                'data': [],
-                'layout': {
-                    'title': 'Chyba při vytváření grafu'
-                }
-            }
